@@ -4,6 +4,23 @@ Uma entrada por rodada, a mais recente no topo. A próxima rodada começa lendo 
 
 ---
 
+## 2026-11-19 · rodada 6 · v2.5 → v2.6 (`index.html`)
+
+**Origem → entrega.** `index.html` v2.5 (md5 c7c661be, igual ao publicado; arquivado como `versoes/index_v2-5_c7c661be.html`) → `index.html` v2.6 (md5 3bdd3036). Commit local; **não enviado** ao GitHub (publicar só a pedido).
+
+**Problema reproduzido** (oportunidade da rodada 5, e maior do que registrado). Depois de "Adotar B" numa semelhança demonstrada, `decide` ignorava `s.adocao`: o relatório seguia dizendo "A segue como controle até você decidir", oferecia "Adotar B" de novo, o controle da próxima batelada continuava A, e o **resumo ROAST_HISTORY registrava "Próxima prova: controle A"** com a decisão antiga — o histórico de torra contradizia a escolha feita.
+
+**Mudança aplicada.** `decide` com adoção registrada: decisão "Você adotou B como controle em <data>, com base na semelhança demonstrada… O próximo A/B parte de B"; `proximo.controle` = controle adotado; `adotavel` falso (some o botão de adotar). No relatório, a proposta gravada (`s.proximo`) acompanha a adoção salvo troca manual (`controleEditado`). A linha separada "Você escolheu adotar…" saiu (a decisão já diz).
+
+**Evidência (sessão semeada SIM_OK, 12/40, pd 30 %; tablet 768×1024).**
+- Antes (v2.5), após adotar: decisão "SIM_OK segue como controle até você decidir"; botões "mantendo SIM_OK" + "Adotar SIM_OKb"; controle da próxima = SIM_OK; resumo "Próxima prova: controle SIM_OK".
+- Depois (v2.6), após adotar: decisão "Você adotou SIM_OKb como controle em 19/11/2026…"; botão único "Criar próximo A/B" (abre com SIM_OKb); controle da próxima = SIM_OKb; resumo "Próxima prova: controle SIM_OKb" e decisão nova. Antes de adotar: igual à v2.5.
+- Vizinhos: troca manual do controle depois de adotar (OCR_402) mantida; relatório de diferença inalterado; recarregar preserva adoção e próxima batelada; veredito ≤ 676 px; sem erros no console.
+
+**Próxima oportunidade.** Mesma tela pós-adoção: "Quanto posso confiar?" diz "Indicativa: confirme antes de mudar a torra" (repetições em semelhança), mas a decisão "Você adotou B… O próximo A/B parte de B" não propõe a confirmação que a confiança pede. Cenário: semelhança demonstrada com 2 avaliadores → Adotar B. Avaliar se a próxima batelada, nesse caso, deve sugerir uma série de confirmação (outro avaliador ou nova sessão) em vez de um A/B qualquer a partir de B.
+
+---
+
 ## 2026-11-19 · rodada 5 · v2.4 → v2.5 (`index.html`)
 
 **Origem → entrega.** `index.html` v2.4 (md5 b1279ba3, igual ao publicado; arquivado como `versoes/index_v2-4_b1279ba3.html`) → `index.html` v2.5 (md5 c7c661be). Commit local; **não enviado** ao GitHub (publicar só a pedido).

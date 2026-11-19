@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Triângulo OCR">
 <meta name="application-name" content="Triângulo OCR">
-<meta name="ocr-build" content="v2.5">
+<meta name="ocr-build" content="v2.6">
 <link rel="manifest" id="manifestLink">
 <link rel="icon" id="favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23161d1a'/%3E%3Cpath d='M32 15 L49 46 L15 46 Z' fill='none' stroke='%2334c38f' stroke-width='4' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" id="appleIcon" href="">
@@ -935,7 +935,7 @@ table.t td.num{text-align:right}
     const pt = prefTally(s);
     const A = (s.par && s.par.A.ocr) || 'A', B = (s.par && s.par.B.ocr) || 'B';
     const mud = ((s.par && s.par.mudancas) || []).filter(Boolean);
-    let sintese = '', decisao = '', confirmarB = false;
+    let sintese = '', decisao = '', confirmarB = false, controleProx = (s.par && s.par.A.ocr) || 'A';
     const sm = st && st.sim, pdT = sm ? Math.round(sm.pdMax * 100) + ' %' : '';
     const k = C.kAvaliadores(s.modo, s.avaliadores), nPlan = (s.tri && s.tri.nPlanejado) || 12;
 
@@ -963,10 +963,18 @@ table.t td.num{text-align:right}
       else if (sm.similar) {
         /* semelhança diz que a troca não altera a xícara além da margem; NÃO diz que B é melhor nem decide a troca */
         const pb = C.pdBounds(st.valid, st.hits, 0.95);
-        decisao = 'Semelhança demonstrada para estes avaliadores: ' + B + ' não alterou a xícara além da margem travada (pd ≤ ' + pdT + '; com 95 %, até ' + pct(pb.pdUpper) + '). ' +
-          'Trocar ' + A + ' por ' + B + ' fica sustentado se o motivo da mudança se mantém' + (mud.length ? ' (' + mud.join(', ') + ')' : '') + '; a escolha é sua. ' + A + ' segue como controle até você decidir.';
+        const margem = B + ' não alterou a xícara além da margem travada (pd ≤ ' + pdT + '; com 95 %, até ' + pct(pb.pdUpper) + ')';
         add('sim-ok', true, 'Acertos dentro do máximo travado no plano (' + sm.kmax + '): a diferença, se existe, fica abaixo de ' + pdT + ' de distinguidores.');
-        add('adocao', true, 'Semelhança não é preferência: o teste não diz que ' + B + ' é melhor. Adotar ' + B + ' é uma decisão pelo motivo da mudança, tomada por você ("Adotar ' + B + ' e criar próximo A/B").'); }
+        if (s.adocao && s.adocao.controle) {
+          /* a adoção foi escolha registrada do usuário: decisão, próxima batelada e ROAST_HISTORY passam a partir de B */
+          controleProx = s.adocao.controle;
+          decisao = 'Você adotou ' + s.adocao.controle + ' como controle em ' + new Date(s.adocao.em).toLocaleDateString('pt-BR') + ', com base na semelhança demonstrada: ' + margem + '. O próximo A/B parte de ' + s.adocao.controle + '.';
+          add('adocao', true, 'Adoção registrada por você. O teste sustenta que a troca não altera a xícara além da margem; não diz que ' + B + ' é melhor.');
+        } else {
+          decisao = 'Semelhança demonstrada para estes avaliadores: ' + margem + '. ' +
+            'Trocar ' + A + ' por ' + B + ' fica sustentado se o motivo da mudança se mantém' + (mud.length ? ' (' + mud.join(', ') + ')' : '') + '; a escolha é sua. ' + A + ' segue como controle até você decidir.';
+          add('adocao', true, 'Semelhança não é preferência: o teste não diz que ' + B + ' é melhor. Adotar ' + B + ' é uma decisão pelo motivo da mudança, tomada por você ("Adotar ' + B + ' e criar próximo A/B").');
+        } }
       else {
         /* nenhum critério atendido: só o que os dados sustentam — o intervalo de pd —, sem nomear um tamanho de diferença */
         const pb = C.pdBounds(st.valid, st.hits, 0.95), nx = nSimProximo(st, k);
@@ -999,7 +1007,7 @@ table.t td.num{text-align:right}
     add('filtro', filtro, 'O objetivo é coado e a prova foi em cupping: validar em filtro numa sessão própria, com o preparo registrado.');
     const pr = s.preparo || {};
     const proximo = {
-      controle: A, variante: confirmarB ? B : '', n: nSugerido(st, nPlan, k), adotavel: !!(sm && st.complete && sm.similar && !st.sig),
+      controle: controleProx, variante: confirmarB ? B : '', n: nSugerido(st, nPlan, k), adotavel: !!(sm && st.complete && sm.similar && !st.sig && !s.adocao),
       mudanca: confirmarB ? 'repetir ' + B + ' (confirmação)' : '',
       manter: ['lote ' + (s.lote || '(informar)'), 'preparo: ' + (pr.metodo || '') + ', moagem ' + (pr.moagem || '') + ' (' + (pr.moedor || '') + '), ' + (pr.dose || '') + ' / ' + (pr.agua || '') + ', ' + (pr.temp || ''), 'demais decisões de torra iguais ao controle'],
       criterio: obj ? 'Na ficha cega: ' + obj + '. Preferência pelo objetivo registrada.' : 'Definir o objetivo sensorial antes da prova.',
@@ -1064,7 +1072,7 @@ table.t td.num{text-align:right}
 (function () {
   'use strict';
   const C = window.OCR, AN = window.OCRAN, LX = window.OCRLEX;
-  const VERSAO = 'v2.5';
+  const VERSAO = 'v2.6';
   const UI_KEY = 'triangulo_ocr_v3_ui';
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
@@ -1723,6 +1731,8 @@ table.t td.num{text-align:right}
     const prox = s.proximo || (s.proximo = JSON.parse(JSON.stringify(D.proximo)));
     /* a v2.0 promovia B a controle sozinha após semelhança; desfaz isso se não houve adoção nem edição manual */
     if (D.proximo.adotavel && prox.controle === B && !s.adocao && !prox.controleEditado) { prox.controle = A; touch(s); }
+    /* adoção registrada: a próxima batelada parte do controle adotado, salvo se você trocou o controle à mão */
+    if (s.adocao && !prox.controleEditado && prox.controle !== D.proximo.controle) { prox.controle = D.proximo.controle; touch(s); }
     /* n e plano da prova são derivados da estatística: acompanham a regra atual, salvo se você editou o plano à mão */
     if (!prox.provaEditado && (prox.n !== D.proximo.n || prox.prova !== D.proximo.prova)) { prox.n = D.proximo.n; prox.prova = D.proximo.prova; touch(s); }
     const fichas = s.desc.fichas.filter(f => f.travada && !f.ladoPendente);
@@ -1838,7 +1848,6 @@ table.t td.num{text-align:right}
       '<section class="verdict" aria-labelledby="rSintLab"><div class="lab" id="rSintLab">O que aconteceu</div><p class="sint" id="rSintese">' + esc(D.sintese) + '</p>' +
       '<div class="lab">Quanto posso confiar?</div><div class="conf ' + CF.nivel + '" id="rConfianca"><b>' + esc(CF.titulo) + '</b><span>' + esc(CF.porque) + '</span></div>' +
       '<div class="lab">O que faço agora</div><p class="dec" id="rDecisao">' + esc(D.decisao) + '</p>' +
-      (s.adocao ? '<p class="small" id="rAdocao" style="margin-top:8px">Você escolheu adotar ' + esc(s.adocao.controle) + ' como controle em ' + fmtDT(s.adocao.em) + '.</p>' : '') +
       '<div class="actions-2 no-print">' + (D.proximo.adotavel ?
         '<button class="btn ghost" id="btnProximoAB" type="button" data-act="proximo-ab">Próximo A/B mantendo ' + esc(A) + '</button><button class="btn primary" id="btnAdotarB" type="button" data-act="proximo-ab" data-controle="B">Adotar ' + esc(B) + ' e criar próximo A/B</button>' :
         '<button class="btn primary" id="btnProximoAB" type="button" data-act="proximo-ab">Criar próximo A/B</button>') +
