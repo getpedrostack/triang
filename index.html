@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Triângulo OCR">
 <meta name="application-name" content="Triângulo OCR">
-<meta name="ocr-build" content="v2.11">
+<meta name="ocr-build" content="v2.12">
 <link rel="manifest" id="manifestLink">
 <link rel="icon" id="favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23161d1a'/%3E%3Cpath d='M32 15 L49 46 L15 46 Z' fill='none' stroke='%2334c38f' stroke-width='4' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" id="appleIcon" href="">
@@ -1460,7 +1460,7 @@ table.t td.num{text-align:right}
 (function () {
   'use strict';
   const C = window.OCR, AN = window.OCRAN, LX = window.OCRLEX, ALOG = window.OCRALOG;
-  const VERSAO = 'v2.11';
+  const VERSAO = 'v2.12';
   const UI_KEY = 'triangulo_ocr_v3_ui';
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
@@ -2223,7 +2223,7 @@ table.t td.num{text-align:right}
     let corpo = '';
     if (P.eixos) corpo = '<p class="tiny escala">Intensidade, não qualidade: mais não é melhor. 0 = não percebido · ✕ = não avaliado.</p>' + axes;
     else if (passo === 2) corpo = '<p class="small muted">Fragrância, aroma, sabor, finalização e boca. Busque no léxico ou escreva o seu termo.</p>' +
-      '<div class="grid2">' + descr + '</div>' +
+      sugLivre(f, pl) + '<div class="grid2">' + descr + '</div>' +
       '<div class="row" style="margin-top:10px"><button class="btn ghost" id="btnLexAbrir" type="button" data-act="lex-abrir">Buscar no léxico</button></div>' +
       '<div class="addrow wraprow" style="margin-top:10px"><input type="text" id="descLivre" placeholder="termo livre" aria-label="Termo livre"><select id="descLivrePos" aria-label="Posição do termo livre" style="max-width:160px"><option value="0">' + pl[0] + '</option><option value="1">' + pl[1] + '</option></select>' + intSelect('descLivreInt') + '<button class="btn ghost" id="btnDescLivre" type="button" data-act="desc-livre">Anotar</button></div>' +
       '<h3>Ao esfriar</h3>' + [0, 1].map(p => '<label class="f" for="esfriar' + p + '">' + pl[p] + ' <span class="tiny">(opcional)</span></label><textarea id="esfriar' + p + '" data-bind="ficha.esfriar.' + p + '" placeholder="o que mudou do quente ao frio">' + esc(f.esfriar[p]) + '</textarea>').join('');
@@ -2240,6 +2240,24 @@ table.t td.num{text-align:right}
     if (!P || !P.eixos) return '';
     const n = P.eixos.reduce((a, ax) => a + [0, 1].filter(p => f.eixos[p][ax.k].estado === 'nao_avaliado').length, 0);
     return n ? n + (n === 1 ? ' posição sem marcar' : ' posições sem marcar') : '';
+  }
+  /* Da impressão livre ao descritor: as palavras que a pessoa já escreveu viram botões no passo 3.
+     Correspondência com o léxico só EXATA (nome, original ou sinônimo, sem acento); sem ela, entra como termo livre. */
+  function palavrasLivre(txt) {
+    const vistos = new Set(), out = [];
+    String(txt || '').split(/[,;\n.]|\s+e\s+/i).map(x => x.trim().replace(/\s+/g, ' ')).forEach(w => {
+      const k = LX.fold(w); if (w.length < 2 || w.length > 40 || vistos.has(k)) return; vistos.add(k); out.push(w); });
+    return out.slice(0, 8);
+  }
+  function termoLex(w) { const k = LX.fold(w).trim(); return LX.TERMS.find(t => [t.nome, t.original].concat(t.sinonimos || []).some(x => LX.fold(x).trim() === k)) || null; }
+  function sugLivre(f, pl) {
+    const blocos = [0, 1].map(p => {
+      const ws = palavrasLivre(f.livre[p]); if (!ws.length) return '';
+      return '<div class="sug"><span class="tiny">' + pl[p] + ' · da sua impressão livre</span><div class="sig">' + ws.map(w => {
+        const t = termoLex(w), nome = t ? t.nome : w, ja = f.descritores.some(x => x.pos === p && LX.fold(x.termo) === LX.fold(nome));
+        return '<button type="button" data-livresug="' + esc(w) + '" data-pos="' + p + '" aria-pressed="' + ja + '" aria-label="' + (ja ? 'Desfazer ' : 'Anotar ') + esc(nome) + ' em ' + pl[p] + '">' + esc(w) +
+          (t && LX.fold(t.nome) !== LX.fold(w) ? ' <span class="tiny">→ ' + esc(t.nome) + '</span>' : t ? ' <span class="tiny">· léxico</span>' : '') + '</button>'; }).join('') + '</div></div>'; }).join('');
+    return blocos ? '<div class="card tight sug-livre">' + blocos + '<p class="tiny" style="margin-top:6px">Toque para anotar; toque de novo para desfazer. O que existe no léxico entra com o nome do catálogo.</p></div>' : '';
   }
   const INTENS = ['leve', 'média', 'forte'];
   function intSelect(id) { return '<select id="' + id + '" aria-label="Intensidade do descritor" style="max-width:150px"><option value="">intensidade</option>' + INTENS.map(x => '<option>' + x + '</option>').join('') + '</select>'; }
@@ -2752,6 +2770,10 @@ table.t td.num{text-align:right}
       if (inModal) UI.lexModalFam = v; else UI.lexFam = v;
       $$('[data-lexfam]').forEach(b => b.setAttribute('aria-pressed', String(b === el)));
       $('#lexResultados').innerHTML = lexResults($('#lexBusca').value, v, inModal); return; }
+    if (el.dataset.livresug != null) { const f = curFicha(s); if (!f) return; const p = Number(el.dataset.pos), w = el.dataset.livresug, t = termoLex(w), nome = t ? t.nome : w;
+      const i = f.descritores.findIndex(x => x.pos === p && LX.fold(x.termo) === LX.fold(nome));
+      if (i >= 0) f.descritores.splice(i, 1); else f.descritores.push({ pos: p, familia: t ? t.familia : null, termo: nome, fase: '', intensidade: '', livre: !t });
+      touch(s); save(true); refreshFicha(); announce((i >= 0 ? 'Removido: ' : 'Anotado: ') + nome); return; }
     if (el.dataset.addterm) { const f = curFicha(s); const t = LX.TERMS.find(x => x.id === el.dataset.addterm);
       f.descritores.push({ pos: Number($('#lexPos').value), familia: t.familia, termo: t.nome, fase: $('#lexFase').value, intensidade: $('#lexInt').value, livre: false }); touch(s); save(true); toast('Anotado: ' + t.nome); return; }
     if (el.dataset.eixo) { const f = curFicha(s); f.eixos[el.dataset.pos][el.dataset.eixo] = { estado: el.dataset.estado, v: null }; touch(s); save(true); refreshFicha(); return; }

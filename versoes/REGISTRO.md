@@ -4,6 +4,30 @@ Uma entrada por rodada, a mais recente no topo. A próxima rodada começa lendo 
 
 ---
 
+## 2026-11-19 · rodada 12 · v2.11 → v2.12 (`index.html`)
+
+**Origem → entrega.** `index.html` v2.11 (md5 816953b2, commit local, não publicado; arquivado como `versoes/index_v2-11_816953b2.html`) → `index.html` v2.12 (md5 no commit). Commit local; **não enviado**.
+
+**Oportunidade da rodada 11** (celular real, teclado): depende do aparelho do usuário; segue aberta. Nesta rodada, inspeção por captura no celular (375×667) do passo 3, do léxico e do relatório.
+
+**Problema reproduzido (v2.11).** A impressão livre não era aproveitada. No passo 3 a tela dizia "nenhum ainda" e pedia busca no léxico ou digitação. Para anotar "caramelo" (Esquerda) e "chocolate amargo" (Direita), já escritos, eram ~24 teclas, 2 toques no seletor de lado e 2 em "Anotar". O termo digitado entrava como livre mesmo existindo no catálogo. No celular, a janela do léxico mostra o resultado só depois de "Anotar em", "Fase", "Intensidade", busca e 11 famílias, e é preciso rolar.
+
+**Mudança aplicada.**
+- Passo 3: para cada lado, as palavras da impressão livre (`palavrasLivre`: separa por , ; . quebra de linha e " e "; deduplica sem acento; 2–40 letras; até 8) viram botões (`sugLivre`, `data-livresug`, alvos de 52 px). Um toque anota, outro desfaz.
+- `termoLex`: correspondência **exata** sem acento com nome, original ou sinônimo do catálogo. Com correspondência, entra com o nome e a família do catálogo e o botão mostra "· léxico" ou "→ Nome do catálogo". Sem ela, entra como termo livre (`livre: true`), sem família. O formato do descritor não mudou.
+
+**Evidência.**
+- Antes: ~24 teclas + 4 toques para 2 descritores, ambos como livres. Depois: **2 toques, nada digitado**, "Caramelo" (Doce e caramelizado) e "Chocolate amargo" (Castanhas e cacau) do catálogo. O segundo toque desfaz.
+- Casos de borda: "pé de moleque" → livre, sem família; "Floral/floral/FLORAL" → 1 botão; "x" e um texto de 50 letras ignorados; "seco" → "Secura no final" (sinônimo do catálogo, mostrado antes do toque). O estado marcado sobrevive ao recarregar.
+- Relatório: "Descritores predominantes" A: Caramelo, pé de moleque · B: Chocolate amargo. Tablet: botões, janela do léxico e termo digitado funcionando juntos; ação visível; sem rolagem lateral (375 e 768).
+- Observação: o CSV nunca trouxe descritores (a v2.11 também não); eles seguem no JSON e no relatório.
+
+**Limites.** A separação por " e " pode dividir um termo composto ("pé de moleque e mel" vira dois, o que é correto; um nome com " e " no meio seria dividido). Não há correspondência aproximada, de propósito: "mel" não vira "Melaço".
+
+**Próxima oportunidade.** No celular, a janela do léxico ainda põe a busca e os resultados abaixo de três seletores e 11 famílias. Cenário: passo 3 → "Buscar no léxico" → digitar → o resultado e o "Anotar" ficam fora da tela. Seguem abertos: o teclado no celular real e a 2ª ficha mais fria na dupla.
+
+---
+
 ## 2026-11-19 · rodada 11 · v2.10 → v2.11 (`index.html`)
 
 **Origem → entrega.** `index.html` v2.10 (md5 9c87f8fd, igual ao publicado; arquivado como `versoes/index_v2-10_9c87f8fd.html`) → `index.html` v2.11 (md5 no commit). Commit local; **não enviado**.
