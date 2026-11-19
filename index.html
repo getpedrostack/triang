@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Triângulo OCR">
 <meta name="application-name" content="Triângulo OCR">
-<meta name="ocr-build" content="v2.9">
+<meta name="ocr-build" content="v2.10">
 <link rel="manifest" id="manifestLink">
 <link rel="icon" id="favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23161d1a'/%3E%3Cpath d='M32 15 L49 46 L15 46 Z' fill='none' stroke='%2334c38f' stroke-width='4' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" id="appleIcon" href="">
@@ -1434,7 +1434,7 @@ table.t td.num{text-align:right}
 (function () {
   'use strict';
   const C = window.OCR, AN = window.OCRAN, LX = window.OCRLEX, ALOG = window.OCRALOG;
-  const VERSAO = 'v2.9';
+  const VERSAO = 'v2.10';
   const UI_KEY = 'triangulo_ocr_v3_ui';
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
@@ -1852,12 +1852,12 @@ table.t td.num{text-align:right}
   function planosCurtos(d) { const k = kAval(d); return [...new Set([6, 9, 12].map(v => Math.ceil(v / k) * k))]; }
   function tabelaPlanos(d, nAtual) {
     const dose = doseG(d), triAtivo = d.mod !== 'desc';
-    const nAv = d.modo === 'solo' ? 1 : Math.max(1, d.avaliadores.length), rev = d.modo === 'revezamento';
+    const nAv = Math.max(1, d.modo === 'solo' && d.mod !== 'desc' ? 1 : d.avaliadores.length), rev = d.modo === 'revezamento';
     const tr = (rot, c, atual, resp) => '<tr' + (atual ? ' class="plano-atual"' : '') + '><td><b>' + rot + '</b>' + (atual ? ' <span class="tiny">(escolhido)</span>' : '') + '</td><td class="num">' + c.preparos + '</td><td class="num">' + c.xic + '</td><td class="num">' + Math.round(c.cafe) + ' g</td><td class="num">' + fmtMin(c.min) + '</td><td class="tiny">' + resp + '</td></tr>';
     const linha = (rot, n, atual) => tr(rot, custoPlano(n, dose), atual, 'diferença perceptível? limiar ' + C.critical(n) + ' acertos · chance de detectar se metade distinguisse: ' + Math.round(C.power(n, 2 / 3) * 100) + ' %');
     const obs = 'o que você percebe e prefere (observação)';
     const linhasAB = nAv === 1 ? tr('Comparação cega A/B', custoAB(1, false, dose), !triAtivo, obs) :
-      tr('A/B · 1 ficha', custoAB(1, false, dose), !triAtivo, obs + '; ' + (rev ? 'um monta, o outro prova' : 'um avaliador prova')) +
+      tr('A/B · 1 ficha', custoAB(1, false, dose), !triAtivo, obs + '; ' + (rev ? 'um monta, o outro prova' : d.modo === 'solo' ? 'um prova, o par fica embaralhado' : 'um avaliador prova')) +
       tr('A/B · ' + nAv + ' fichas', custoAB(nAv, rev, dose), false, 'cada um descreve e escolhe' + (rev ? '; no revezamento quem montou precisa de um par novo, com relógio novo' : ' nas mesmas xícaras, um depois do outro no tablet'));
     const med = medidasAB();
     const ns = planosCurtos(d); if (triAtivo && !ns.includes(nAtual)) ns.push(nAtual);
@@ -1887,9 +1887,10 @@ table.t td.num{text-align:right}
       '<label class="f" for="fMudancas">O que mudou na torra entre A e B <span class="tiny">(uma por linha)</span></label><textarea id="fMudancas" data-bind="draft.mudancas" placeholder="gás depois do 1C">' + esc(d.mudancas) + '</textarea>' + avisoEntradas(d) +
       '<label class="f" for="fLote">Lote do café verde</label><input type="text" id="fLote" data-bind="draft.lote" value="' + esc(d.lote) + '" placeholder="Arara P17 · Fazenda Jangada">' +
       '<label class="f" for="fAval">Avaliadores</label><div class="addrow"><input type="text" id="fAval" placeholder="Nome" autocomplete="off"><button class="btn ghost" id="btnAddAval" type="button" data-act="add-aval">Adicionar</button></div><div class="chips">' + avs + '</div>' +
-      '<label class="f">Quem prepara as xícaras</label>' + seg('modo', d.modo, [['dedicado', 'Preparador dedicado'], ['revezamento', 'Revezamento'], ['solo', 'Sozinho (exploratório)']]) +
+      '<label class="f">Quem prepara as xícaras</label>' + seg('modo', d.modo, [['dedicado', 'Preparador dedicado'], ['revezamento', 'Revezamento'], ['solo', 'Embaralhar sem olhar']]) +
       (d.modo === 'dedicado' ? '<label class="f" for="fPreparador">Nome de quem prepara (não prova)</label><input type="text" id="fPreparador" data-bind="draft.preparador" value="' + esc(d.preparador) + '">' : '') +
-      '<p class="tiny" style="margin-top:8px">' + (d.modo === 'dedicado' ? 'Recomendado: quem prepara nunca prova, e os avaliadores nunca veem um mapa.' : d.modo === 'revezamento' ? 'Cada rodada, um prepara e outro prova. O que você vê ao preparar pertence à sequência do outro avaliador.' : 'Você monta marcando os fundos e embaralha sem olhar. A leitura sempre sai exploratória.') + '</p>' +
+      '<p class="tiny" style="margin-top:8px">' + (d.modo === 'dedicado' ? 'Recomendado: quem prepara nunca prova, e os avaliadores nunca veem um mapa.' : d.modo === 'revezamento' ? 'Cada rodada, um prepara e outro prova. O que você vê ao preparar pertence à sequência do outro avaliador.' : (d.avaliadores.length > 1 ? 'Ninguém vê o mapa: quem marca os fundos embaralha sem olhar, e ' + (d.avaliadores.length === 2 ? 'os dois provam' : 'todos provam') + ' o mesmo par, nas mesmas posições, um depois do outro no tablet. Só na comparação A/B. Provem sem comentar até todas as fichas travarem.' :
+        'Você monta marcando os fundos e embaralha sem olhar. A leitura sempre sai exploratória.')) + '</p>' +
       '<label class="f">Como comparar</label>' + seg('mod', d.mod, [['desc', 'Comparação cega A/B (recomendado)'], ['tri+desc', 'A/B + triângulo de confirmação'], ['tri', 'Só triângulo']]) +
       '<p class="tiny" style="margin-top:8px">' + (d.mod === 'desc' ? 'Duas xícaras às cegas, impressão livre, intensidades e escolha pelo objetivo. Uma observação de bancada que cabe no dia a dia; confirme depois, em outra sessão, se o resultado justificar.' :
         'O triângulo diz se a diferença é perceptível, ao custo de 3 xícaras por tríade. Use como confirmação.') + '</p>' +
@@ -1922,7 +1923,8 @@ table.t td.num{text-align:right}
     if (d.modo === 'revezamento' && d.avaliadores.length < 2) return 'No revezamento são precisos ao menos dois avaliadores.';
     if (d.modo === 'dedicado' && (!d.preparador.trim() || !d.avaliadores.length)) return 'Informe quem prepara e ao menos um avaliador.';
     if (d.modo === 'dedicado' && d.avaliadores.includes(d.preparador.trim())) return 'Quem prepara não pode estar entre os avaliadores.';
-    if (d.modo === 'solo' && d.avaliadores.length > 1) return 'No modo sozinho, deixe só um avaliador.';
+    if (d.modo === 'solo' && d.avaliadores.length > 1 && d.mod !== 'desc') return 'Com o triângulo, o modo "Embaralhar sem olhar" é para uma pessoa só. Para a dupla, use a comparação cega A/B ou o revezamento.';
+    if (d.modo === 'solo' && d.avaliadores.length > 1 && d.avaliadores.includes(NOME_SOLO)) return 'Na dupla, troque "' + NOME_SOLO + '" pelo nome de quem prova.';
     if (d.modo !== 'solo' && d.avaliadores.includes(NOME_SOLO)) return '"' + NOME_SOLO + '" é o nome provisório do modo sozinho. Troque pelo nome de quem prova.';
     if (d.mod !== 'desc' && d.desenho === 'semelhanca' && C.simRule(Math.max(6, parseInt(d.n, 10) || 12), d.pdMax, 0.05).kmax < 0)
       return 'Com este n não há como concluir semelhança. ' + (nSimAlvo(d.pdMax, kAval(d), 6) ? 'Para 80 % de chance, use n = ' + nSimAlvo(d.pdMax, kAval(d), 6) + '.' : 'Aceite uma margem (pd) maior.');
@@ -2093,7 +2095,8 @@ table.t td.num{text-align:right}
       const preps = (s.modo === 'dedicado' && s.preparador ? [s.preparador] : []).concat(s.avaliadores.filter(a => a !== s.preparador));
       const prepDefault = s.modo === 'dedicado' ? s.preparador : (preps.find(a => a !== (want || avs[0])) || '');
       render('<h2>Ficha descritiva cega</h2>' +
-        (e.novoSorteio ? '<div class="note warn">' + esc(want) + ' viu o mapa das posições atuais. Vamos sortear novas posições, e outra pessoa monta as xícaras.</div>' : '') +
+        (e.novoSorteio ? '<div class="note warn">' + (solo ? 'As xícaras do par anterior já foram viradas. Vamos sortear um par novo: marque os fundos e embaralhe sem olhar.' :
+          esc(want) + ' viu o mapa das posições atuais. Vamos sortear novas posições, e outra pessoa monta as xícaras.') + '</div>' : '') +
         '<p class="muted">Duas xícaras, uma de cada torra, em posições sorteadas agora. O avaliador descreve cada posição sem saber qual é qual.</p>' +
         '<label class="f" for="fDescAval">Quem preenche a ficha</label><select id="fDescAval">' + avs.map(a => '<option' + (a === want ? ' selected' : '') + '>' + esc(a) + '</option>').join('') + '</select>' +
         (!solo ? '<label class="f" for="fDescPrep">Quem monta as xícaras (vê o mapa)</label><select id="fDescPrep">' +
@@ -2120,8 +2123,16 @@ table.t td.num{text-align:right}
       announce('Impressão livre.');
     } else if (e.fase === 'ficha') {
       render(vFichaHtml(s, f), 'provar');
+    } else if (e.fase === 'aguarda') {
+      const faltam = faltamMesmoPar(s), prox = faltam[0], feitas = s.desc.fichas.filter(x => x.ladoPendente).map(x => x.avaliador);
+      if (!prox) { e.fase = 'lado'; return vDesc(s); }
+      render('<div class="ack"><div class="ring" aria-hidden="true">✓</div><h2>Ficha de ' + esc(feitas.join(' e ')) + ' travada</h2>' +
+        '<p class="lead">Não vire nem mexa nas xícaras: ' + esc(prox) + ' prova a mesma esquerda e a mesma direita.</p></div>' + descClock(s) +
+        '<div class="actions"><button class="btn primary big" id="btnMesmoPar" type="button" data-act="desc-mesmo-par" data-av="' + esc(prox) + '">' + esc(prox) + ': começar a ficha</button>' +
+        '<button class="btn quiet" id="btnVirarJa" type="button" data-act="desc-virar">Ninguém mais vai provar: virar as xícaras</button></div>', 'registrar');
     } else if (e.fase === 'lado') {
-      render('<h2>Vire as xícaras</h2><p class="muted">Ficha e escolha já estão travadas. Agora sim: qual fundo estava à esquerda?</p><div class="prefs" style="grid-template-columns:1fr 1fr">' +
+      const pend = s.desc.fichas.filter(x => x.ladoPendente).map(x => x.avaliador);
+      render('<h2>Vire as xícaras</h2><p class="muted">' + (pend.length > 1 ? 'As fichas de ' + esc(pend.join(' e ')) + ' estão travadas' : 'Ficha e escolha já estão travadas') + '. Agora sim: qual fundo estava à esquerda?</p><div class="prefs" style="grid-template-columns:1fr 1fr">' +
         [0, 1].map(i => '<button type="button" data-lado="' + i + '" aria-pressed="false">Fundo ' + (i + 1) + '</button>').join('') + '</div>', 'registrar');
     } else if (e.fase === 'pref') {
       const ch = f.preferencia.escolha;
@@ -2134,14 +2145,20 @@ table.t td.num{text-align:right}
     } else if (e.fase === 'travada') {
       const revelada = s.status === 'revelada' || s.status === 'interrompida';
       render('<div class="ack"><div class="ring" aria-hidden="true">✓</div><h2>Ficha travada</h2><p class="muted">' + s.desc.fichas.filter(x => x.travada).length + ' ficha(s) nesta sessão. Ela não muda mais.</p></div>' +
-        '<div class="card tight"><label class="f" for="fOutroAval" style="margin-top:0">Outra pessoa vai preencher uma ficha do mesmo par?</label>' +
+        '<div class="card tight"><label class="f" for="fOutroAval" style="margin-top:0">' + (s.modo === 'solo' ? 'Mais alguém vai provar? (par novo)' : 'Outra pessoa vai preencher uma ficha do mesmo par?') + '</label>' +
         '<div class="addrow"><input type="text" id="fOutroAval" placeholder="Nome" list="avList"><datalist id="avList">' + s.avaliadores.map(a => '<option value="' + esc(a) + '">').join('') + '</datalist>' +
-        '<button class="btn ghost" id="btnOutraFicha" type="button" data-act="outra-ficha">Nova ficha</button></div><p class="tiny">' + (s.modo === 'solo' ? 'No modo sozinho as xícaras já foram viradas: outra ficha pede um par novo, com relógio novo (cerca de ' + (2 * TEMPO.dose + TEMPO.janela + TEMPO.ficha) + ' min a mais).' :
+        '<button class="btn ghost" id="btnOutraFicha" type="button" data-act="outra-ficha">Nova ficha</button></div><p class="tiny">' + (s.modo === 'solo' ? 'As xícaras já foram viradas: outra ficha pede um par novo, com relógio novo (cerca de ' + (2 * TEMPO.dose + TEMPO.janela + TEMPO.ficha) + ' min a mais).' :
           'Quem não viu o mapa prova nestas xícaras (cerca de ' + TEMPO.ficha + ' min a mais). Quem montou as xícaras precisa de um par novo, com relógio novo (cerca de ' + (2 * TEMPO.dose + TEMPO.janela + TEMPO.ficha) + ' min a mais).') +
         (revelada ? '' : (() => { const m = (Date.now() - s.criadaEm) / 60000; return m <= 120 ? ' <b>Até aqui: ' + fmtMin(m) + ' desde o plano travado</b> (meta ' + META_MIN + ' min).' : ''; })()) + '</p></div>' +
         '<div class="actions">' + (revelada ? '<button class="btn primary big" id="btnVerRelatorio" type="button" data-act="ver-relatorio">Ver relatório</button>' :
           '<button class="btn primary big" id="btnRevelar" type="button" data-act="revelar">Revelar resultados</button>') + '</div>', 'registrar');
     }
+  }
+  /* modo embaralhado: avaliadores que ainda não preencheram ficha nesta sessão; provam o par que está na mesa, antes de virar */
+  function faltamMesmoPar(s) {
+    if (s.modo !== 'solo' || s.modulos.tri) return [];
+    const ja = s.desc.fichas.filter(x => x.travada).map(x => x.avaliador);   /* quem já tem ficha na sessão não é chamado de novo */
+    return s.avaliadores.filter(a => a !== NOME_SOLO && !ja.includes(a));
   }
   function descClock(s) { return s.desc.aguaEm ? clockHtml(s.desc.aguaEm, infusaoMin(s), 'desc') : ''; }
   function marcaInicioFicha(s) { const f = curFicha(s); if (f && f.minInicio == null) f.minInicio = minDesde(s.desc.aguaEm); }
@@ -2207,7 +2224,11 @@ table.t td.num{text-align:right}
       $('#confirmSemPref').focus(); return;
     }
     f.travada = true; f.travadaEm = Date.now(); f.aposRevelacaoTri = !!s.tri.revelado; f.minFim = minDesde(s.desc.aguaEm); touch(s);
-    if (s.modo === 'solo') { f.ladoPendente = true; s.desc.etapa = { fase: 'lado', fichaIdx: s.desc.etapa.fichaIdx }; vDesc(s); announce('Ficha e escolha travadas. Vire as xícaras.'); return; }
+    if (s.modo === 'solo') { f.ladoPendente = true;
+      /* par embaralhado e ninguém viu o mapa: os outros avaliadores provam as MESMAS xícaras antes de virar */
+      const faltam = faltamMesmoPar(s);
+      s.desc.etapa = { fase: faltam.length ? 'aguarda' : 'lado', fichaIdx: s.desc.etapa.fichaIdx }; vDesc(s);
+      announce(faltam.length ? 'Ficha travada. Não vire as xícaras: ' + faltam[0] + ' prova o mesmo par.' : 'Ficha e escolha travadas. Vire as xícaras.'); return; }
     s.desc.etapa = { fase: 'travada', fichaIdx: s.desc.etapa.fichaIdx };
     if (s.status === 'revelada' || s.status === 'interrompida') s.desc.revelada = true;
     vDesc(s); announce('Ficha travada.');
@@ -2701,7 +2722,9 @@ table.t td.num{text-align:right}
     if (el.dataset.pref) { const f = curFicha(s); f.preferencia.escolha = el.dataset.pref; touch(s); save(true); $$('[data-pref]').forEach(b => b.setAttribute('aria-pressed', String(b === el))); const bx = $('#semPrefBox'); if (bx) bx.innerHTML = ''; return; }
     if (el.dataset.lado) { const f = curFicha(s); const left = Number(el.dataset.lado); /* fundo à esquerda */
       if (!f || !f.ladoPendente) return;
-      const al = s.desc.alocacao; f.alocacao = [al[left], al[1 - left]]; f.ladoPendente = false; s.desc.etapa.fase = 'travada'; touch(s); vDesc(s); announce('Ficha travada.'); return; }
+      /* uma resposta vale para todas as fichas do par embaralhado (mesmas xícaras, mesma esquerda) */
+      const al = s.desc.alocacao; s.desc.fichas.filter(x => x.ladoPendente).forEach(x => { x.alocacao = [al[left], al[1 - left]]; x.ladoPendente = false; });
+      s.desc.etapa.fase = 'travada'; touch(s); vDesc(s); announce('Ficha travada.'); return; }
     const act = el.dataset.act; if (!act) return;
     switch (act) {
       case 'home': UI.draft = null; return go('home');
@@ -2756,6 +2779,10 @@ table.t td.num{text-align:right}
       case 'desc-agua-inicio': { if (s.desc.aguaEm) return; s.desc.aguaEm = Date.now(); const so = s.desc.sorteios; if (so && so.length && !so[so.length - 1].aguaEm) so[so.length - 1].aguaEm = s.desc.aguaEm; touch(s); }
         try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); } catch (e2) { /* sem som: fica o aviso visual */ }
         vDesc(s); announce('Relógio iniciado. Infusão em andamento.'); return;
+      case 'desc-mesmo-par': { if (s.desc.etapa.fase !== 'aguarda') return; const av = el.dataset.av; if (!faltamMesmoPar(s).includes(av)) return;
+        const nf = blankFicha(av, s.desc.alocacao.slice()); nf.cega = true; nf.montadaPor = 'embaralhada sem olhar';
+        s.desc.fichas.push(nf); s.desc.etapa = { fase: 'entrega', fichaIdx: s.desc.fichas.length - 1 }; touch(s); return vDesc(s); }
+      case 'desc-virar': if (s.desc.etapa.fase !== 'aguarda') return; s.desc.etapa.fase = 'lado'; touch(s); return vDesc(s);
       case 'desc-montado': s.desc.etapa.fase = s.modo === 'solo' ? 'livre' : 'entrega'; if (s.modo === 'solo') marcaInicioFicha(s); touch(s); return vDesc(s);
       case 'desc-pronto': s.desc.etapa.fase = 'livre'; marcaInicioFicha(s); touch(s); return vDesc(s);
       case 'livre-ok': s.desc.etapa.fase = 'ficha'; s.desc.etapa.passo = 0; touch(s); return vDesc(s);

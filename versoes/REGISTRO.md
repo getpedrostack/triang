@@ -4,6 +4,30 @@ Uma entrada por rodada, a mais recente no topo. A próxima rodada começa lendo 
 
 ---
 
+## 2026-11-19 · rodada 10 · v2.9 → v2.10 (`index.html`)
+
+**Origem → entrega.** `index.html` v2.9 (md5 e0696be8, igual ao publicado; arquivado como `versoes/index_v2-9_e0696be8.html`) → `index.html` v2.10 (md5 no commit). O pedido repetiu o da rodada 7. Esta rodada atacou o item ainda não atendido: "fluxo adequado para uma pessoa ou duas" perto dos 30 min. Commit local; **não enviado**.
+
+**Problema reproduzido (v2.9, tablet).** Com Ana e Bruno, na comparação A/B, os dois só conseguiam provar no revezamento. Quem monta vê o mapa, então cada ficha pedia um par novo: 2 pares, 4 xícaras, 50 g, ~47 min estimados. O "embaralhar sem olhar", em que ninguém vê o mapa, recusava a dupla ("No modo sozinho, deixe só um avaliador.").
+
+**Mudança aplicada.**
+- O modo `solo` passa a se chamar **"Embaralhar sem olhar"** e aceita 2 ou mais avaliadores **só na comparação A/B**. Com triângulo, a dupla embaralhada é recusada com explicação. "Você" na dupla é recusado.
+- Ao travar uma ficha no par embaralhado, se falta alguém (`faltamMesmoPar`: avaliadores sem ficha travada na sessão), a tela "aguarda" diz "Não vire nem mexa nas xícaras: Bruno prova a mesma esquerda e a mesma direita". A ação principal é "Bruno: começar a ficha" (`desc-mesmo-par`, mesmo par, mesmo relógio); há também "Ninguém mais vai provar: virar as xícaras" (`desc-virar`).
+- "Qual fundo estava à esquerda?" agora resolve **todas** as fichas pendentes do par com uma resposta.
+- A tabela de planos conta os avaliadores no modo embaralhado ("A/B · 2 fichas: 1 par, 2 xícaras, 33 g, 37 min").
+- Textos do modo embaralhado corrigidos: "par novo" depois de virar, em vez de "fulano viu o mapa".
+
+**Evidência (tablet 768×1024).**
+- Antes: dupla só por revezamento (2 pares, 47 min); embaralhar recusava a dupla.
+- Depois: dupla embaralhada aceita; tabela 1 par / 37 min. Ana: 25 toques até travar. Retomada correta na tela "aguarda", na impressão livre de Bruno (texto preservado) e em "Vire as xícaras". Um sorteio só. Uma resposta deu `BA` às duas fichas. Preferências mapeadas certo (Ana esquerda = OCR 502, Bruno direita = OCR 501). Relatório "2 fichas cegas (Ana, Bruno)", com tempo de bancada "1 par, 2 fichas". Nenhuma tela de prova com OCR.
+- Vizinhos: sozinho com uma pessoa vira direto; revezamento sem a tela "aguarda"; "Ninguém mais vai provar" vira só a ficha de Ana; terceira pessoa (Carla) recebe par novo, e quem já tem ficha não é chamado de novo. Triângulo sozinho e em revezamento abrem a rodada 1. Botões novos de 60 e 52 px, sem rolar. Biblioteca, treino, Histórico, demonstração e Caderno ok; console limpo.
+
+**Limites.** 37 min é estimativa e passa da meta de 30. O ganho vem de um par a menos e de ninguém precisar ver o mapa, mas as duas fichas seguem uma depois da outra num tablet só. Na bancada, a segunda pessoa prova enquanto a primeira preenche; o "Tempo de bancada" medido vai dizer o real. Provar sem comentar é instrução, não algo que o app garanta.
+
+**Próxima oportunidade.** Com a dupla no mesmo par, a 2ª ficha começa mais tarde (minInicio maior) e pega a xícara mais fria. Avaliar se o relatório deve mostrar isso por ficha ou alternar quem começa. Seguem abertos: o limite da carga (3 °C) com o operador, calibrar `TEMPO` com medidas reais e a montagem cruzada.
+
+---
+
 ## 2026-11-19 · rodada 9 · v2.8 → v2.9 (`index.html`)
 
 **Origem → entrega.** `index.html` v2.8 (md5 df2bcaa2; arquivado como `versoes/index_v2-8_df2bcaa2.html`) → `index.html` v2.9 (md5 no commit). Commit local; **não enviado** ao GitHub.
