@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Triângulo OCR">
 <meta name="application-name" content="Triângulo OCR">
-<meta name="ocr-build" content="v2.4">
+<meta name="ocr-build" content="v2.5">
 <link rel="manifest" id="manifestLink">
 <link rel="icon" id="favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23161d1a'/%3E%3Cpath d='M32 15 L49 46 L15 46 Z' fill='none' stroke='%2334c38f' stroke-width='4' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" id="appleIcon" href="">
@@ -1064,7 +1064,7 @@ table.t td.num{text-align:right}
 (function () {
   'use strict';
   const C = window.OCR, AN = window.OCRAN, LX = window.OCRLEX;
-  const VERSAO = 'v2.4';
+  const VERSAO = 'v2.5';
   const UI_KEY = 'triangulo_ocr_v3_ui';
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
@@ -1272,12 +1272,16 @@ table.t td.num{text-align:right}
         '<select aria-label="Origem de ' + lab + '" data-bind="' + (prefix === 'd' ? 'draft.' : '') + 'torra.' + L + '.' + k + '.o"><option value="">origem</option><option value="medido"' + (obj[k].o === 'medido' ? ' selected' : '') + '>medido</option><option value="informado"' + (obj[k].o === 'informado' ? ' selected' : '') + '>informado</option></select></div>').join('') +
       '<p class="tiny">Medido = lido no Artisan ou no .alog. Informado = dito por alguém. Campo vazio = faltante. O app não lê o .alog.</p>';
   }
+  /* "Você" é só o nome provisório que o modo sozinho cria quando ninguém foi cadastrado.
+     Nunca é repetido numa sessão nova nem vale fora do modo sozinho: viraria um provador que não existe. */
+  const NOME_SOLO = 'Você';
+  const semProvisorio = avs => (avs || []).filter(a => a !== NOME_SOLO);
   /* repete a configuração estável da última sessão real; nunca as idades pós-torra nem o checklist de bancada */
   function ultimaConfig() {
     const s = ST.sessoes.filter(x => !x.demo && x.origem === 'v3').sort((a, b) => b.criadaEm - a.criadaEm)[0];
     if (!s) return null;
     const p = s.preparo || {};
-    return { avaliadores: (s.avaliadores || []).slice(), modo: s.modo || 'revezamento', preparador: s.preparador || '',
+    return { avaliadores: semProvisorio(s.avaliadores), modo: s.modo || 'revezamento', preparador: s.preparador || '',
       mod: s.modulos.tri && s.modulos.desc ? 'tri+desc' : s.modulos.tri ? 'tri' : 'desc', n: (s.tri && s.tri.nPlanejado) || 12,
       desenho: (s.tri && s.tri.desenho) || 'diferenca', pdMax: (s.tri && s.tri.pdMax) || 0.3,
       preparo: Object.fromEntries(['metodo', 'moedor', 'dose', 'agua', 'temp', 'infusao'].filter(k => p[k] != null && p[k] !== '').map(k => [k, p[k]])), prefill: fmtDate(s.criadaEm) };
@@ -1354,6 +1358,7 @@ table.t td.num{text-align:right}
     if (d.modo === 'dedicado' && (!d.preparador.trim() || !d.avaliadores.length)) return 'Informe quem prepara e ao menos um avaliador.';
     if (d.modo === 'dedicado' && d.avaliadores.includes(d.preparador.trim())) return 'Quem prepara não pode estar entre os avaliadores.';
     if (d.modo === 'solo' && d.avaliadores.length > 1) return 'No modo sozinho, deixe só um avaliador.';
+    if (d.modo !== 'solo' && d.avaliadores.includes(NOME_SOLO)) return '"' + NOME_SOLO + '" é o nome provisório do modo sozinho. Troque pelo nome de quem prova.';
     if (d.mod !== 'desc' && d.desenho === 'semelhanca' && C.simRule(Math.max(6, parseInt(d.n, 10) || 12), d.pdMax, 0.05).kmax < 0)
       return 'Com este n não há como concluir semelhança. ' + (nSimAlvo(d.pdMax, kAval(d), 6) ? 'Para 80 % de chance, use n = ' + nSimAlvo(d.pdMax, kAval(d), 6) + '.' : 'Aceite uma margem (pd) maior.');
     if (BENCH.some((_, i) => !d.bench[i])) return 'Confira o lembrete de bancada antes de começar.';
@@ -2084,7 +2089,7 @@ table.t td.num{text-align:right}
     const s = S();
     /* seleção de xícara */
     if (el.classList.contains('cup')) { $$('.cup').forEach(c => c.setAttribute('aria-checked', 'false')); el.setAttribute('aria-checked', 'true'); $('#btnConfirmar').disabled = false; return; }
-    if (el.dataset.modo) { UI.draft.modo = el.dataset.modo; vSetup(); return; }
+    if (el.dataset.modo) { UI.draft.modo = el.dataset.modo; if (el.dataset.modo !== 'solo') UI.draft.avaliadores = semProvisorio(UI.draft.avaliadores); vSetup(); return; }
     if (el.dataset.desenho) { UI.draft.desenho = el.dataset.desenho;
       if (el.dataset.desenho === 'semelhanca') { const alvo = nSimAlvo(UI.draft.pdMax, kAval(UI.draft), 6);   // repetições iguais por avaliador e 80 % de chance
         if (alvo && (parseInt(UI.draft.n, 10) || 12) < alvo) UI.draft.n = alvo; }

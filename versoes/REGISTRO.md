@@ -4,6 +4,24 @@ Uma entrada por rodada, a mais recente no topo. A próxima rodada começa lendo 
 
 ---
 
+## 2026-11-19 · rodada 5 · v2.4 → v2.5 (`index.html`)
+
+**Origem → entrega.** `index.html` v2.4 (md5 b1279ba3, igual ao publicado; arquivado como `versoes/index_v2-4_b1279ba3.html`) → `index.html` v2.5 (md5 c7c661be). Commit local; **não enviado** ao GitHub (publicar só a pedido).
+
+**Problema reproduzido** (oportunidade da rodada 4, confirmada no código: `ultimaConfig` copiava os avaliadores e trocar de modo não limpava). Última sessão solo → Nova comparação → Revezamento → Ana e Bia → plano com provadores {Você, Ana, Bia}; a rodada 1 pedia "Prepara Ana · **Prova Você**" — uma pessoa que não existe.
+
+**Mudança aplicada.** `NOME_SOLO = 'Você'` é só o nome provisório do modo sozinho: `ultimaConfig` não o repete (`semProvisorio`), trocar para revezamento/preparador dedicado o remove, e a validação recusa "Você" fora do modo sozinho com explicação. Nomes reais seguem sendo repetidos.
+
+**Evidência (mesmo cenário semeado, v2.4 × v2.5).**
+- Antes: avaliadores ao abrir [Você]; após trocar de modo [Você]; plano {Você, Ana, Bia}; rodada 1 "Prova Você".
+- Depois: ao abrir []; após trocar []; plano {Ana, Bia}; rodada 1 "Prepara Bia · Prova Ana".
+- Vizinhos: "Você" digitado à mão no revezamento → recusado, sessão não criada; solo seguido de solo sem cadastrar ninguém → sessão criada com [Você]; nome real no solo ("Pedro") → repetido, sobrevive à troca de modo, plano {Pedro, Ana}; sem erros no console.
+- Armadilha de teste: o servidor local deixou o navegador usar a v2.4 em cache numa primeira tentativa (o teste invalidado foi refeito com `?v=` na URL).
+
+**Próxima oportunidade.** Relatório de semelhança demonstrada depois de adotar B: a decisão continua dizendo "A segue como controle até você decidir" logo acima de "Você escolheu adotar B como controle em …" — duas frases que se contradizem na mesma tela. Cenário: semelhança demonstrada → "Adotar B e criar próximo A/B" → voltar ao relatório. Também observado: após publicar, o celular pode mostrar a versão anterior por alguns minutos (cache do GitHub Pages); vale um aviso de versão nova ou instrução de recarregar.
+
+---
+
 ## 2026-11-19 · rodada 4 · v2.3 candidata → v2.4 definitiva (`index.html`)
 
 **Pedido do usuário:** "Quero uma aplicação definitiva, não uma candidata." A partir desta rodada, `index.html` é a aplicação e as rodadas o editam direto (ver CLAUDE.md).
