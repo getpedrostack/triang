@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Triângulo OCR">
 <meta name="application-name" content="Triângulo OCR">
-<meta name="ocr-build" content="v2.12">
+<meta name="ocr-build" content="v2.13">
 <link rel="manifest" id="manifestLink">
 <link rel="icon" id="favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23161d1a'/%3E%3Cpath d='M32 15 L49 46 L15 46 Z' fill='none' stroke='%2334c38f' stroke-width='4' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" id="appleIcon" href="">
@@ -249,6 +249,16 @@ table.planos th,table.planos td{padding:6px 5px}
 tr.plano-atual td{background:var(--em-soft)}
 .tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
 @media (max-width:620px){
+  /* tabelas largas viram blocos rotulados no celular: nada fora da tela (.t.empilha vence table.t e table.torra-ab, que vêm depois) */
+  table.t.empilha,table.t.empilha tbody,table.t.empilha tr,table.t.empilha th,table.t.empilha td{display:block;width:auto;min-width:0}
+  table.t.empilha tr:first-child{display:none}
+  table.t.empilha tr{border-bottom:1px solid var(--line);padding:8px 0}
+  table.t.empilha th,table.t.empilha td,table.t.empilha td.num{border:0;padding:2px 0;text-align:left}
+  table.t.empilha td[data-label]::before{content:attr(data-label) ': ';color:var(--muted);font-size:13px}
+  table.t.empilha td:empty{display:none}
+  table.t.empilha.inline td{display:inline-block;margin-right:12px}
+}
+@media (max-width:620px){
   table.planos,table.planos tbody,table.planos tr,table.planos td{display:block;width:auto}
   table.planos tr:first-child{display:none}
   table.planos tr{border-bottom:1px solid var(--line);padding:8px 6px}
@@ -295,7 +305,13 @@ table.t td.num{text-align:right}
 
 /* modais */
 .modal{position:fixed;inset:0;z-index:60;background:rgba(5,8,7,.78);display:flex;align-items:center;justify-content:center;padding:18px}
-.modal .box{background:var(--surface);border:1px solid var(--line-2);border-radius:16px;max-width:560px;width:100%;max-height:88vh;overflow:auto;padding:22px}
+.modal .box{background:var(--surface);border:1px solid var(--line-2);border-radius:16px;max-width:560px;width:100%;max-height:88vh;max-height:88dvh;overflow:auto;padding:22px}
+/* a última fileira de botões de toda janela fica fixa no rodapé da caixa: a ação nunca some no fim da rolagem (celular) */
+.modal .box > .actions:last-child,.modal .acts-fixas{position:sticky;z-index:5;background:var(--surface);bottom:-22px;margin:20px -22px -22px;padding:12px 22px max(22px,env(safe-area-inset-bottom));border-top:1px solid var(--line)}
+.lexopts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}
+.lexopts .fase{grid-column:1/-1}
+.lexbusca{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:8px}
+.lexopts label.f{margin-top:0;font-size:13px}
 .modal .box h3{margin-top:0;font-size:21px}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:#0b100e;font-weight:650;border-radius:24px;padding:12px 20px;z-index:80;font-size:15px}
 
@@ -1460,7 +1476,7 @@ table.t td.num{text-align:right}
 (function () {
   'use strict';
   const C = window.OCR, AN = window.OCRAN, LX = window.OCRLEX, ALOG = window.OCRALOG;
-  const VERSAO = 'v2.12';
+  const VERSAO = 'v2.13';
   const UI_KEY = 'triangulo_ocr_v3_ui';
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
@@ -1767,8 +1783,8 @@ table.t td.num{text-align:right}
     const outro = alvo === 'draft' ? d[L === 'A' ? 'B' : 'A'] : '';
     if (alvo === 'draft' && outro && r.id.ocr && outro.replace(/[\s_]/g, '') === r.id.ocr.replace(/[\s_]/g, '')) conf.push('a outra amostra já é ' + outro + ': A e B seriam a mesma torra');
     const linhas = CAMPOS_ALOG.map(([k, rot]) => { const c = r.campos[k];
-      return '<tr><th>' + rot + '</th><td>' + esc(valorAlog(k, c)) + '</td><td class="tiny">' + (c ? esc(ORIGEM[c.o] || c.o) : 'ausente no arquivo') + '</td></tr>'; }).join('') +
-      [['gas', 'Gás'], ['ar', 'Ar']].map(([g, rot]) => '<tr><th>' + rot + '</th><td>' + esc(trajetoria(r, g) || '—') + '</td><td class="tiny">' + (trajetoria(r, g) ? 'marcado no Artisan' : 'ausente no arquivo') + '</td></tr>').join('');
+      return '<tr><th>' + rot + '</th><td>' + esc(valorAlog(k, c)) + '</td><td class="tiny" data-label="origem">' + (c ? esc(ORIGEM[c.o] || c.o) : 'ausente no arquivo') + '</td></tr>'; }).join('') +
+      [['gas', 'Gás'], ['ar', 'Ar']].map(([g, rot]) => '<tr><th>' + rot + '</th><td>' + esc(trajetoria(r, g) || '—') + '</td><td class="tiny" data-label="origem">' + (trajetoria(r, g) ? 'marcado no Artisan' : 'ausente no arquivo') + '</td></tr>').join('');
     const pistas = r.id.pistas.map((p, i) => '<li><span class="tiny">campo ' + esc(p.campo) + ':</span> “' + esc(p.texto.length > 140 ? p.texto.slice(0, 140) + '…' : p.texto) + '”' +
       (p.sugestao ? ' <button class="btn quiet" type="button" data-act="alog-pista" data-i="' + i + '">Usar “' + esc(p.sugestao) + '” como café</button>' : ' <span class="tiny">(anotação: não usada como nome)</span>') + '</li>').join('');
     openModal('<h3 id="mTitle">Prévia do .alog · ' + L + ' (' + (L === 'A' ? 'controle' : 'variante') + ')</h3>' +
@@ -1777,7 +1793,7 @@ table.t td.num{text-align:right}
       '<div class="grid2"><div><label class="f" for="alogCod">Identificação da torra (' + L + ')</label><input type="text" id="alogCod" value="' + esc(alvo === 'sessao' ? codAtual : r.id.ocr) + '"' + (alvo === 'sessao' ? ' disabled' : '') + '></div>' +
       '<div><label class="f" for="alogCafe">Café</label><input type="text" id="alogCafe" value="' + esc(r.id.cafeArquivo || torraAtual.cafe || '') + '" placeholder="' + (r.id.cafeArquivo ? '' : 'o nome do arquivo só traz o código: confira') + '"></div></div>' +
       (pistas ? '<p class="small" style="margin-top:10px">Dentro do arquivo (nada é aplicado sozinho):</p><ul class="small">' + pistas + '</ul>' : '') +
-      '<table class="t" style="margin-top:10px"><tr><th>Dado</th><th>Valor</th><th>Origem</th></tr>' + linhas + '</table>' +
+      '<table class="t empilha" style="margin-top:10px"><tr><th>Dado</th><th>Valor</th><th>Origem</th></tr>' + linhas + '</table>' +
       (r.avisos.length ? '<div class="note warn"><b>Ausente ou incompleto</b><ul class="small">' + r.avisos.map(a => '<li>' + esc(a) + '</li>').join('') + '</ul></div>' : '') +
       (conf.length ? '<div class="note danger"><b>Conferir antes de aplicar</b><ul class="small">' + conf.map(a => '<li>' + esc(a) + '</li>').join('') + '</ul></div>' : '') +
       '<div class="actions-2"><button class="btn ghost" type="button" data-act="fechar">Cancelar</button><button class="btn primary" id="alogAplicar" type="button" data-act="alog-aplicar">Aplicar a ' + L + '</button></div>', '#alogAplicar');
@@ -1823,13 +1839,14 @@ table.t td.num{text-align:right}
     const dif = k => { const it = D && MAPA[k] && D.itens.find(i => i.k === MAPA[k]); return it ? AN.fmtDif(it) : ''; };
     const cel = (I, k) => I ? (I.campos[k] ? esc(valorAlog(k, I.campos[k])) : '<span class="tiny">ausente</span>') : '<span class="tiny">sem .alog</span>';
     const org = k => { const c = (IA && IA.campos[k]) || (IB && IB.campos[k]); return c ? ORIGEM[c.o] || c.o : ''; };
+    const la = ' data-label="A · ' + esc(A) + '"', lb = ' data-label="B · ' + esc(B) + '"';
     const meta = [['Arquivo', I => esc(I.arquivo)], ['Data da torra', I => esc(I.data || '—')], ['Café', I => esc(I.cafe || '—')]]
-      .map(([rot, f]) => '<tr><th>' + rot + '</th><td>' + (IA ? f(IA) : '—') + '</td><td>' + (IB ? f(IB) : '—') + '</td><td></td><td></td></tr>').join('');
-    const linhas = CAMPOS_ALOG.map(([k, rot]) => '<tr><th>' + rot + '</th><td>' + cel(IA, k) + '</td><td>' + cel(IB, k) + '</td><td class="num">' + esc(dif(k)) + '</td><td class="tiny">' + esc(org(k)) + '</td></tr>').join('') +
-      [['gas', 'Gás'], ['ar', 'Ar']].map(([g, rot]) => '<tr><th>' + rot + '</th><td class="small">' + (IA ? esc(trajetoria(IA, g) || '—') : '—') + '</td><td class="small">' + (IB ? esc(trajetoria(IB, g) || '—') : '—') + '</td><td></td><td class="tiny">marcado no Artisan</td></tr>').join('');
+      .map(([rot, f]) => '<tr><th>' + rot + '</th><td' + la + '>' + (IA ? f(IA) : '—') + '</td><td' + lb + '>' + (IB ? f(IB) : '—') + '</td><td></td><td></td></tr>').join('');
+    const linhas = CAMPOS_ALOG.map(([k, rot]) => '<tr><th>' + rot + '</th><td' + la + '>' + cel(IA, k) + '</td><td' + lb + '>' + cel(IB, k) + '</td><td class="num" data-label="Δ B − A">' + esc(dif(k)) + '</td><td class="tiny" data-label="origem">' + esc(org(k)) + '</td></tr>').join('') +
+      [['gas', 'Gás'], ['ar', 'Ar']].map(([g, rot]) => '<tr><th>' + rot + '</th><td class="small"' + la + '>' + (IA ? esc(trajetoria(IA, g) || '—') : '—') + '</td><td class="small"' + lb + '>' + (IB ? esc(trajetoria(IB, g) || '—') : '—') + '</td><td></td><td class="tiny" data-label="origem">marcado no Artisan</td></tr>').join('');
     const avisos = [['A', IA], ['B', IB]].filter(([, I]) => I && (I.avisos.length || I.conflitos.length))
       .map(([L, I]) => '<li><b>' + L + ':</b> ' + esc(I.avisos.concat(I.conflitos).join('; ')) + '</li>').join('');
-    return '<div class="tscroll"><table class="t torra-ab"><tr><th>Dado</th><th>A · ' + esc(A) + '</th><th>B · ' + esc(B) + '</th><th class="num">Δ B − A</th><th>Origem</th></tr>' + meta + linhas + '</table></div>' +
+    return '<div class="tscroll"><table class="t torra-ab empilha"><tr><th>Dado</th><th>A · ' + esc(A) + '</th><th>B · ' + esc(B) + '</th><th class="num">Δ B − A</th><th>Origem</th></tr>' + meta + linhas + '</table></div>' +
       (avisos ? '<ul class="small">' + avisos + '</ul>' : '') +
       '<p class="tiny">Valores lidos dos .alog no aparelho. Origem: medido (sensor), marcado no Artisan, calculado pelo Artisan ou pelo app, digitado no Artisan. Ao lado da xícara, uma diferença de torra é associação, não causa.</p>';
   }
@@ -2436,9 +2453,9 @@ table.t td.num{text-align:right}
         (st.sim ? '<li>Semelhança com repetições da mesma pessoa: o binomial trata cada rodada como prova independente, o que deixa a conclusão otimista (a ASTM E1885 desaconselha somar repetições). Vale para estes avaliadores.</li>' +
           '<li>Semelhança fala de "diferença abaixo de ' + Math.round(st.sim.pdMax * 100) + ' % de distinguidores", não de torras idênticas, e não diz qual atributo mudou.</li></ul>' :
           '<li>O triângulo mede discriminação: não diz o tamanho da diferença, qual atributo mudou nem qual é melhor. Para mostrar que uma mudança não altera a xícara, use a pergunta de semelhança ao configurar.</li></ul>') +
-        det('rel-rodadas', 'Rodada a rodada', '<table class="t"><tr><th>#</th><th>Provou</th><th>Preparou</th><th>Diferente</th><th>Marcou</th><th class="num">Min. após água</th><th></th></tr>' +
-          s.tri.rodadas.map((r, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(r.taster || '—') + '</td><td>' + esc(r.preparer || '—') + '</td><td>' + (r.impar != null ? 'pos. ' + (r.impar + 1) : '—') + '</td><td>' + (r.escolha != null ? 'pos. ' + (r.escolha + 1) : '—') + '</td>' +
-            '<td class="num">' + (r.minAgua != null ? fmt(r.minAgua, 1) + (r.foraJanela ? ' · fora' : '') : '—') + '</td><td>' + (r.status === 'invalidada' ? 'invalidada' : r.acerto ? 'acerto' : 'erro') + '</td></tr>').join('') + '</table>', false);
+        det('rel-rodadas', 'Rodada a rodada', '<table class="t empilha inline"><tr><th>#</th><th>Provou</th><th>Preparou</th><th>Diferente</th><th>Marcou</th><th class="num">Min. após água</th><th></th></tr>' +
+          s.tri.rodadas.map((r, i) => '<tr><td data-label="rodada">' + (i + 1) + '</td><td data-label="provou">' + esc(r.taster || '—') + '</td><td data-label="preparou">' + esc(r.preparer || '—') + '</td><td data-label="diferente">' + (r.impar != null ? 'pos. ' + (r.impar + 1) : '—') + '</td><td data-label="marcou">' + (r.escolha != null ? 'pos. ' + (r.escolha + 1) : '—') + '</td>' +
+            '<td class="num" data-label="min após água">' + (r.minAgua != null ? fmt(r.minAgua, 1) + (r.foraJanela ? ' · fora' : '') : '—') + '</td><td><b>' + (r.status === 'invalidada' ? 'invalidada' : r.acerto ? 'acerto' : 'erro') + '</b></td></tr>').join('') + '</table>', false);
     } else triBody = '<p>Sessão sem triângulo.</p>';
     /* sensorial */
     let senso = '<p class="tiny">Escala OCR própria de intensidade (1–10), não é a escala da SCA. Δ = B − A: positivo, B mais intenso; intensidade não é qualidade.</p>' +
@@ -2544,6 +2561,8 @@ table.t td.num{text-align:right}
 
   /* ================= BIBLIOTECA e TREINO ================= */
   function lexResults(q, fam, addMode) {
+    /* na janela da ficha, sem busca nem família, não despeja o catálogo inteiro (no celular eram ~20 mil px até o Fechar) */
+    if (addMode && !String(q || '').trim() && !fam) return '<p class="small">Digite um termo ou escolha uma família.</p>';
     const res = LX.searchLex(q, fam);
     if (!res.length) return '<p class="small">Nada encontrado. Você pode anotar o termo como livre.</p>';
     return res.map(t => '<div class="lex-item"><div><b>' + esc(t.nome) + '</b> <span class="orig">' + esc(t.original) + '</span><div class="tiny">' + esc(t.familia + ' › ' + t.sub) + '</div>' +
@@ -2572,13 +2591,15 @@ table.t td.num{text-align:right}
   }
   function openLexModal() {
     const s = S(); const pl = posLabels(s);
+    /* no celular: busca no topo, opções numa linha, nada de catálogo inteiro sem busca, Fechar sempre visível */
     openModal('<h3 id="mTitle">Léxico</h3><p class="tiny">Ordem alfabética, sem sugestão por torra ou origem.</p>' +
-      '<div class="grid2"><div><label class="f" for="lexPos">Anotar em</label><select id="lexPos"><option value="0">' + pl[0] + '</option><option value="1">' + pl[1] + '</option></select></div>' +
-      '<div><label class="f" for="lexFase">Fase</label><select id="lexFase"><option value="">—</option>' + AN.FASES.map(f => '<option>' + f + '</option>').join('') + '</select></div></div>' +
-      '<label class="f" for="lexInt">Intensidade</label>' + intSelect('lexInt').replace('style="max-width:150px"', '') +
-      '<label class="f" for="lexBusca">Buscar</label><input type="text" id="lexBusca" autocomplete="off" placeholder="termo ou sinônimo">' + famButtons(null) +
+      '<div class="lexbusca"><div><label class="f" for="lexBusca">Buscar</label><input type="text" id="lexBusca" autocomplete="off" placeholder="termo ou sinônimo"></div>' +
+      '<div><label class="f" for="lexFamSel">Família</label><select id="lexFamSel"><option value="">Todas</option>' + LX.FAMILIAS.map(f => '<option>' + esc(f) + '</option>').join('') + '</select></div></div>' +
+      '<div class="lexopts"><div><label class="f" for="lexPos">Anotar em</label><select id="lexPos"><option value="0">' + pl[0] + '</option><option value="1">' + pl[1] + '</option></select></div>' +
+      '<div><label class="f" for="lexInt">Intensidade</label>' + intSelect('lexInt').replace('style="max-width:150px"', '') + '</div>' +
+      '<div class="fase"><label class="f" for="lexFase">Fase</label><select id="lexFase"><option value="">—</option>' + AN.FASES.map(f => '<option>' + f + '</option>').join('') + '</select></div></div>' +
       '<div id="lexResultados">' + lexResults('', null, true) + '</div>' +
-      '<div class="actions"><button class="btn primary" id="lexFechar" type="button" data-act="lex-fechar">Fechar</button></div>', '#lexBusca', () => { if (UI.view === 'desc' && curFicha(S())) refreshFicha(); });
+      '<div class="actions acts-fixas"><button class="btn primary" id="lexFechar" type="button" data-act="lex-fechar">Fechar</button></div>', '#lexBusca', () => { if (UI.view === 'desc' && curFicha(S())) refreshFicha(); });
     UI.lexModalFam = null;
   }
 
@@ -2738,6 +2759,7 @@ table.t td.num{text-align:right}
     if (t.id === 'fileRestaurar') { const file = t.files && t.files[0]; t.value = ''; if (!file) return;
       const rd = new FileReader(); rd.onload = () => abrirRestauro(file.name, String(rd.result || '')); rd.onerror = () => toast('Não consegui ler o arquivo'); rd.readAsText(file); return; }
     if (t.dataset.bench != null) { UI.draft.bench[t.dataset.bench] = t.checked; return; }
+    if (t.id === 'lexFamSel') { UI.lexModalFam = t.value || null; $('#lexResultados').innerHTML = lexResults($('#lexBusca').value, UI.lexModalFam, true); return; }
     if (t.dataset.bind === 'draft.n') { UI.draft.n = Math.max(6, Math.min(NMAX, parseInt(t.value, 10) || 12)); vSetup(); return; }
     if (t.dataset.bind && t.dataset.bind.startsWith('draft.') && t.tagName === 'SELECT') { setPath(UI, t.dataset.bind, t.value); return; }
     if (t.dataset.sinalfase != null || t.dataset.sinalint != null) {

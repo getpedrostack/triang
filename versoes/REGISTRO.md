@@ -4,6 +4,33 @@ Uma entrada por rodada, a mais recente no topo. A próxima rodada começa lendo 
 
 ---
 
+## 2026-11-19 · rodada 13 · v2.12 → v2.13 (`index.html`)
+
+**Origem → entrega.** `index.html` v2.12 (md5 f2793150, igual ao publicado; arquivado como `versoes/index_v2-12_f2793150.html`) → `index.html` v2.13 (md5 no commit). Commit local; **não enviado**. Pedido do usuário: "coisas fora da tela principal quando visto do celular".
+
+**Auditoria (v2.12).** Roteiro de 32 telas e janelas (início, configuração em todas as variantes, prévia do .alog, "Por quê?", A/B em dupla do mapa ao relatório, léxico, triângulo, Histórico, restauração, demonstração, biblioteca, treino) a 360×740 e 320×640. Para cada uma: elementos além da borda, caixas com rolagem lateral e, nas janelas, a ação final dentro da caixa.
+- Relatório, "Torra A × B": tabela de 560 px numa área de 294 (254 em 320). Δ e origem ficavam fora da tela.
+- Relatório com triângulo, "Rodada a rodada": a página rolava para o lado (479/360 e 479/320).
+- Janela do léxico: sem busca, listava o catálogo inteiro (20.461 px) e o "Fechar" ficava a 20.484 px. Com busca, os resultados vinham depois de três seletores e 11 famílias.
+- Prévia do .alog a 320: a janela rolava para o lado (tabela Dado/Valor/Origem).
+- O resto, incluindo ficha, escolha, triângulo e configuração, estava ok (efeito da v2.11).
+
+**Mudança aplicada.**
+- `table.t.empilha` (≤ 620 px): tabelas largas viram blocos rotulados por `data-label` (`.inline` deixa as células na mesma linha). Vence `table.t` e `table.torra-ab{min-width:560px}`, que vêm depois no CSS. Usada em Torra A × B, Rodada a rodada e prévia do .alog. No tablet seguem em colunas.
+- Léxico (janela): busca e seletor de "Família" no topo; "Anotar em" e "Intensidade" lado a lado, com a Fase embaixo; resultados logo abaixo. Sem busca nem família, mostra "Digite um termo ou escolha uma família." A página Biblioteca não muda.
+- Toda janela: `.box` com `max-height:88dvh` e a última fileira de botões fixa no rodapé da caixa, cobrindo margem e laterais.
+
+**Evidência (depois).** O mesmo roteiro de 32 itens: **32/32 ok** em 320×640, 360×740, 375×667 e 768×1024.
+- Léxico a 360: conteúdo de 830 px, "Fechar" visível; com a família Floral, o primeiro "Anotar" aparece aos 403 px. Anotar segue funcionando.
+- Torra A × B a 320: 254/254 px, sem rolagem lateral.
+- Console limpo.
+
+**Limites.** Emulador, não aparelho: `dvh` e a área segura variam por navegador. A Torra A × B empilhada fica longa (~2.400 px), mas fica dentro de um bloco que abre e fecha.
+
+**Próxima oportunidade.** Conferir no celular real (barra de endereço, teclado aberto na ficha). Seguem abertos: a 2ª ficha mais fria na dupla e o limite de carga (3 °C) com o operador.
+
+---
+
 ## 2026-11-19 · rodada 12 · v2.11 → v2.12 (`index.html`)
 
 **Origem → entrega.** `index.html` v2.11 (md5 816953b2, commit local, não publicado; arquivado como `versoes/index_v2-11_816953b2.html`) → `index.html` v2.12 (md5 no commit). Commit local; **não enviado**.
