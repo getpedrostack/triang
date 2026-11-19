@@ -4,6 +4,38 @@ Uma entrada por rodada, a mais recente no topo. A próxima rodada começa lendo 
 
 ---
 
+## 2026-11-19 · rodada 14 · v2.13 → v2.14 (`index.html`) · marca e ícones
+
+**Origem → entrega.** `index.html` v2.13 (md5 9e46fec0, arquivado como `versoes/index_v2-13_9e46fec0.html`) → `index.html` v2.14 + `icon.svg`, `icon-32.png`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `manifest.webmanifest`, `marca/gerar_icones.py`. Commit local; **não enviado**. Pedido do usuário: refinar a marca atual ("falta acabamento… sem simetria, sem design, gestalt"); escolheu a proposta A · Refinada entre três (prancha comparativa).
+
+**Problema (v2.13).**
+- Geometria: triângulo não equilátero (base 304, lados 312); xícara de cima invadia o traço em 4 px, as de baixo a 1 e 13 px da borda; conjunto das xícaras 11 px fora do centro do triângulo; xícara diferente no canto, sem eixo de simetria; cantos arredondados (rx 116) embutidos, que o iPhone arredonda de novo.
+- Instalação: ícones e manifesto eram gerados no navegador a cada abertura (canvas → data URL; manifesto em `blob:`). `start_url: '.'` relativo a um `blob:` não resolve, e o Chrome no Android tende a não aceitar esse manifesto para instalar.
+
+**Mudança aplicada.**
+- Marca A: triângulo equilátero (R 170, traço 26, cantos redondos) com centroide em y = 256 + R/8 (centro óptico); xícaras num triângulo concêntrico, r 32,41, folga 16,2 px igual entre xícaras e até o traço; xícara cobre (a diferente) no topo, no eixo. Fundo inteiro (sem cantos) com luz radial suave no alto. Ponto mais distante a 194,6 px do centro (zona segura do maskable: 204,8).
+- Favicon de 32 px com geometria própria (R 200, traço 34, folga = 0,9 r): na geometria A as xícaras creme se fundiam em 32 px. A marca da barra superior (30 px) usa essa mesma geometria, sem fundo.
+- Arquivos reais em vez de gerados: `<link rel="manifest" href="manifest.webmanifest">`, `icon-32.png`, `apple-touch-icon.png` (180). O manifesto declara 192/512 (`any`), 512 (`maskable`) e o SVG. Saiu o código de canvas/blob; o botão Instalar segue igual.
+- `marca/gerar_icones.py` recalcula a geometria, confere folgas e zona segura (assert) e rasteriza pelo Edge (Playwright).
+
+**Evidência (depois).** Servido em `http://127.0.0.1:8765/?v=214a`: `ocr-build` v2.14; os 6 arquivos com 200 e tipo certo (`application/manifest+json`, `image/png`, `image/svg+xml`); PNGs com o tamanho declarado; `start_url` resolve para a raiz; marca da barra 30×30 com 3 xícaras; console limpo; `node --check` ok.
+
+**Limites.** Não testado em aparelho: o ícone na tela inicial do iPhone/Android só aparece depois de publicar e reinstalar (quem já instalou precisa remover e adicionar de novo; o iOS guarda o ícone antigo).
+
+**Segunda parte da rodada: paleta da marca (D1 · Marca plena).** O usuário entregou a pasta `Desktop/Original Coffee Roaster/Logo_Original` (logos, selo circular, embalagem, 13 fundos e 87 formas op-art) e escolheu a direção D1 entre duas (prancha de estudo).
+- Paleta medida nos arquivos 01–03: petróleo `#104a53`, café `#5d3007`, cobre `#ba744d`, caramelo `#da9c5e`, pêssego `#fad9b8` (viram `--brand-*` no `:root`).
+- UI: fundos derivados do petróleo (`--bg #0a1c20` … `--line-2 #2f5961`), ação principal em petróleo claro (`--em #5bb8bd`), A em pêssego (`#f2d2ae`), B em cobre (`#da9062`, clareado para o selo de B passar de 4,5:1). O verde-esmeralda saiu. Aviso âmbar e perigo não mudaram. Cores soltas trocadas: barra superior, véu das janelas, toast, glifo de "passe o aparelho", `theme-color`.
+- Contraste (WCAG, antes → depois): ink/bg 16,5 → 15,4; muted/surface-2 6,2 → 6,3; faint/surface-3 4,7 → 4,6; texto da ação 8,5 → 7,9; B sobre surface-2 5,7 → 5,3; selo de B 5,1 → 4,8. Todos ≥ 4,5.
+- Ícones: mesma geometria A, triângulo pêssego sobre petróleo com luz no alto, xícaras caramelo; a diferente é o "olho" do escudo (anel cobre, miolo café). Manifesto: `background_color #104a53`, `theme_color #0a1c20`.
+- Escudo redesenhado em vetor (`escudo()`, medido pixel a pixel no 01.png: tudo concêntrico, traços de 9) e `assinatura()`: rodapé da tela inicial e topo do relatório (sai na impressão em preto).
+- Fundo: atrás do título da tela inicial, triângulo com círculos concêntricos (linguagem op-art da marca), pêssego a 9 % (7 % abaixo de 420 px), recortado no `.hero`, escondido na impressão.
+
+**Evidência (D1).** `node --check` ok. Sem nada além da borda a 320×640 (início, histórico, relatório de demonstração); a 375×812 e 768×1024 conferido por captura; console sem erros. Barras A × B do perfil em pêssego e cobre, legíveis. Chaves `triangulo_*` de teste apagadas.
+
+**Próxima oportunidade.** Publicar e conferir a instalação no celular real (Android: prompt de instalação e recorte redondo; iPhone: ícone na tela de início) e as cores sob a luz da bancada. Depois, levar a mesma paleta e linguagem ao Brew (o ícone dele já é a gota do escudo, mas em verde-água fora da paleta).
+
+---
+
 ## 2026-11-19 · rodada 13 · v2.12 → v2.13 (`index.html`)
 
 **Origem → entrega.** `index.html` v2.12 (md5 f2793150, igual ao publicado; arquivado como `versoes/index_v2-12_f2793150.html`) → `index.html` v2.13 (md5 no commit). Commit local; **não enviado**. Pedido do usuário: "coisas fora da tela principal quando visto do celular".

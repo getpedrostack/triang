@@ -4,23 +4,26 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Triângulo OCR — da montagem da mesa à decisão de torra. Teste triangular cego (ISO 4120), ficha descritiva cega e escolha pelo objetivo. Original Coffee Roaster.">
-<meta name="theme-color" content="#0f1412">
+<meta name="theme-color" content="#0a1c20">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Triângulo OCR">
 <meta name="application-name" content="Triângulo OCR">
-<meta name="ocr-build" content="v2.13">
-<link rel="manifest" id="manifestLink">
-<link rel="icon" id="favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23161d1a'/%3E%3Cpath d='M32 15 L49 46 L15 46 Z' fill='none' stroke='%2334c38f' stroke-width='4' stroke-linejoin='round'/%3E%3C/svg%3E">
-<link rel="apple-touch-icon" id="appleIcon" href="">
+<meta name="ocr-build" content="v2.14">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Triângulo OCR · Original Coffee Roaster</title>
 <style>
 :root{
-  --bg:#0f1412; --surface:#161d1a; --surface-2:#1d2622; --surface-3:#25302b; --line:#2e3a34; --line-2:#3c4a43;
-  --ink:#eef2ef; --ink-2:#c6cfca; --muted:#9aa7a0; --faint:#8d9a93;
-  --em:#34c38f; --em-strong:#5ad6a6; --em-ink:#03130c; --em-soft:rgba(52,195,143,.14); --em-line:#1f6e52;
-  --a:#d8c39f; --a-soft:rgba(216,195,159,.13); --b:#d68a5c; --b-soft:rgba(214,138,92,.14);
+  /* paleta Original Coffee Roaster (desde a v2.14): petróleo #104a53, café #5d3007, cobre #ba744d,
+     caramelo #da9c5e, pêssego #fad9b8 — tons escuros derivados do petróleo; contraste de texto ≥ 4,5:1 conferido */
+  --brand-petroleo:#104a53; --brand-cafe:#5d3007; --brand-cobre:#ba744d; --brand-caramelo:#da9c5e; --brand-pessego:#fad9b8;
+  --bg:#0a1c20; --surface:#0f272c; --surface-2:#14323a; --surface-3:#1a3d45; --line:#23474f; --line-2:#2f5961;
+  --ink:#f7efe6; --ink-2:#dccfc2; --muted:#a6b4b2; --faint:#97a6a5;
+  --em:#5bb8bd; --em-strong:#86d0d3; --em-ink:#04181b; --em-soft:rgba(91,184,189,.14); --em-line:#2a7a80;
+  --a:#f2d2ae; --a-soft:rgba(242,210,174,.13); --b:#da9062; --b-soft:rgba(218,144,98,.15);
   --warn:#e3a95a; --warn-soft:rgba(227,169,90,.12); --warn-line:#6b5230;
   --danger:#ec7a66; --danger-soft:rgba(236,122,102,.12);
   --font:"Avenir Next","Segoe UI","Helvetica Neue",Roboto,"Noto Sans",Ubuntu,Arial,sans-serif;
@@ -39,12 +42,25 @@ a{color:var(--em-strong)}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 
 /* barra superior */
-#topbar{position:sticky;top:0;z-index:20;background:rgba(15,20,18,.94);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+#topbar{position:sticky;top:0;z-index:20;background:rgba(10,28,32,.94);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
 .tb{max-width:780px;margin:0 auto;padding:max(10px,env(safe-area-inset-top)) var(--pad) 10px;display:flex;align-items:center;gap:12px}
 .brand{display:flex;align-items:center;gap:10px;font-weight:650;letter-spacing:-.01em;color:var(--ink);background:none;border:0;padding:0;min-height:52px;font:inherit;cursor:pointer}
 .brand svg{width:30px;height:30px;flex:0 0 auto}
 .brand small{display:block;font-weight:500;color:var(--muted);font-size:12px;line-height:1.1}
 .tb-sp{flex:1}
+/* assinatura Original Coffee Roaster (escudo vetorial redesenhado do logo: tudo concêntrico, traços de 9) */
+.assina{display:flex;align-items:center;justify-content:center;gap:12px;margin:32px 0 6px;padding-top:20px;border-top:1px solid var(--line)}
+.assina .escudo{width:30px;flex:0 0 auto}.assina .escudo svg{display:block;width:100%;height:auto}
+.assina-t{font-weight:800;letter-spacing:.1em;font-size:17px;line-height:1.05;color:var(--brand-pessego)}
+.assina-t small{display:block;font-weight:650;letter-spacing:.16em;font-size:10px;color:var(--brand-caramelo);margin-top:3px}
+.assina.topo{justify-content:flex-start;margin:0 0 14px;padding:0 0 12px;border-top:0;border-bottom:1px solid var(--line)}
+.assina.topo .escudo{width:24px}.assina.topo .assina-t{font-size:14px}
+/* fundo da tela inicial: triângulo com círculos concêntricos, da linguagem op-art da marca, quase invisível */
+.hero{position:relative;overflow:hidden;margin:0 calc(-1 * var(--pad));padding:4px var(--pad) 2px}
+.hero::after{content:"";position:absolute;right:-56px;top:-34px;width:280px;height:280px;pointer-events:none;opacity:.09;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 280 280' fill='none' stroke='%23fad9b8' stroke-width='1.6'%3E%3Cpath d='M140 22 L242 199 L38 199 Z'/%3E%3Cg%3E%3Ccircle cx='140' cy='140' r='14'/%3E%3Ccircle cx='140' cy='140' r='26'/%3E%3Ccircle cx='140' cy='140' r='38'/%3E%3Ccircle cx='140' cy='140' r='50'/%3E%3Ccircle cx='140' cy='140' r='62'/%3E%3Ccircle cx='140' cy='140' r='74'/%3E%3Ccircle cx='140' cy='140' r='86'/%3E%3Ccircle cx='140' cy='140' r='98'/%3E%3Ccircle cx='140' cy='140' r='110'/%3E%3C/g%3E%3C/svg%3E") center/contain no-repeat}
+.hero > *{position:relative;z-index:1}
+@media (max-width:420px){.hero::after{right:-92px;top:-40px;opacity:.07}}
 .tbtn{min-height:52px;min-width:52px;padding:0 14px;border-radius:22px;border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);font:inherit;font-size:14px;cursor:pointer}
 .tbtn:hover{border-color:var(--em-line);color:var(--ink)}
 .stages{max-width:780px;margin:0 auto;padding:0 var(--pad) 10px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;list-style:none}
@@ -304,7 +320,7 @@ table.t td.num{text-align:right}
 .hist-item .meta{font-size:14px;color:var(--muted)}
 
 /* modais */
-.modal{position:fixed;inset:0;z-index:60;background:rgba(5,8,7,.78);display:flex;align-items:center;justify-content:center;padding:18px}
+.modal{position:fixed;inset:0;z-index:60;background:rgba(3,12,14,.8);display:flex;align-items:center;justify-content:center;padding:18px}
 .modal .box{background:var(--surface);border:1px solid var(--line-2);border-radius:16px;max-width:560px;width:100%;max-height:88vh;max-height:88dvh;overflow:auto;padding:22px}
 /* a última fileira de botões de toda janela fica fixa no rodapé da caixa: a ação nunca some no fim da rolagem (celular) */
 .modal .box > .actions:last-child,.modal .acts-fixas{position:sticky;z-index:5;background:var(--surface);bottom:-22px;margin:20px -22px -22px;padding:12px 22px max(22px,env(safe-area-inset-bottom));border-top:1px solid var(--line)}
@@ -313,7 +329,7 @@ table.t td.num{text-align:right}
 .lexbusca{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:8px}
 .lexopts label.f{margin-top:0;font-size:13px}
 .modal .box h3{margin-top:0;font-size:21px}
-.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:#0b100e;font-weight:650;border-radius:24px;padding:12px 20px;z-index:80;font-size:15px}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:#061518;font-weight:650;border-radius:24px;padding:12px 20px;z-index:80;font-size:15px}
 
 @media (max-width:620px){
   .grid2,.who,.actions-2{grid-template-columns:1fr}
@@ -342,6 +358,7 @@ table.t td.num{text-align:right}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 @media print{
   html,body{background:#fff;color:#111}
+  .assina-t{color:#111}.assina-t small{color:#444}.assina{border-color:#bbb}.hero::after{display:none}
   #topbar,.no-print,.sess-actions,.btn,.toast,.modal{display:none!important}
   .card,.verdict,details.x,.hyp,.note{background:#fff;border-color:#bbb;color:#111}
   .muted,.tiny,.verdict .lab,.quick li b,table.t th,.origin{color:#444}
@@ -1476,7 +1493,7 @@ table.t td.num{text-align:right}
 (function () {
   'use strict';
   const C = window.OCR, AN = window.OCRAN, LX = window.OCRLEX, ALOG = window.OCRALOG;
-  const VERSAO = 'v2.13';
+  const VERSAO = 'v2.14';
   const UI_KEY = 'triangulo_ocr_v3_ui';
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
@@ -1649,6 +1666,18 @@ table.t td.num{text-align:right}
   function sessLabel(s) { return (s.demo ? 'DEMONSTRAÇÃO · ' : '') + (s.par.A.ocr || 'A') + ' × ' + (s.par.B.ocr || 'B'); }
 
   /* ================= HOME ================= */
+  /* escudo Original Coffee Roaster em vetor (medido no 01.png; centro comum, traços de 9, lados da gota com inclinação 0,667) */
+  function escudo() {
+    const placa = i => { const r = 74 - i; return 'M' + (-r) + ' ' + (-108 + i) + ' H' + r + ' V0 A' + r + ' ' + r + ' 0 0 1 ' + (-r) + ' 0 Z'; };
+    const gota = tip => 'M0 ' + tip + ' L' + (0.667 * (200 - tip)).toFixed(2) + ' 200 L' + (-0.667 * (200 - tip)).toFixed(2) + ' 200 Z';
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="-75 -109 150 184" role="img" aria-label="Escudo Original Coffee Roaster">' +
+      '<defs><clipPath id="escudoPlaca"><path d="' + placa(35) + '"/></clipPath></defs>' +
+      '<path d="' + placa(0) + '" fill="#ba744d"/><path d="' + placa(9) + '" fill="#5d3007"/><path d="' + placa(26) + '" fill="#ba744d"/><path d="' + placa(35) + '" fill="#da9c5e"/>' +
+      '<g clip-path="url(#escudoPlaca)"><path d="' + gota(-85.7) + '" fill="#ba744d"/><path d="' + gota(-70) + '" fill="#fad9b8"/></g>' +
+      '<circle r="22" fill="#ba744d"/><circle r="13" fill="#5d3007"/></svg>';
+  }
+  const assinatura = cls => '<div class="assina' + (cls ? ' ' + cls : '') + '"><span class="escudo">' + escudo() + '</span><span class="assina-t">ORIGINAL<small>COFFEE ROASTER · ESTD 2020</small></span></div>';
+
   function vHome() {
     UI.cur = null;
     const open = openSessions();
@@ -1659,8 +1688,8 @@ table.t td.num{text-align:right}
         '<button class="btn ghost" type="button" data-act="retomar" data-id="' + esc(s.id) + '">Retomar</button></div>';
     }).join('') + '</div>' : '';
     render(
-      '<h1>Da mesa à decisão de torra</h1>' +
-      '<p class="lead">Compare duas torras às cegas, descreva cada xícara e escolha a que serve ao seu objetivo. No fim, o relatório diz o que testar na próxima batelada.</p>' +
+      '<div class="hero"><h1>Da mesa à decisão de torra</h1>' +
+      '<p class="lead">Compare duas torras às cegas, descreva cada xícara e escolha a que serve ao seu objetivo. No fim, o relatório diz o que testar na próxima batelada.</p></div>' +
       '<div class="home-cta">' +
       '<button class="btn primary big" id="btnNova" type="button" data-act="nova"><span class="t">Nova comparação<span>Duas torras OCR, um objetivo</span></span></button>' +
       '<button class="btn ghost big" id="btnRetomar" type="button" data-act="retomar-lista" ' + (open.length ? '' : 'disabled aria-disabled="true"') + '><span class="t">Retomar sessão<span>' + (open.length ? open.length + (open.length > 1 ? ' sessões abertas' : ' sessão aberta') : 'Nenhuma sessão aberta') + '</span></span></button>' +
@@ -1669,7 +1698,8 @@ table.t td.num{text-align:right}
       '<button class="btn ghost" id="btnHistorico" type="button" data-act="historico">Histórico</button>' +
       '<button class="btn ghost" id="btnBiblioteca" type="button" data-act="biblioteca">Biblioteca sensorial</button>' +
       '<button class="btn ghost" id="btnTreino" type="button" data-act="treino">Treino</button></div>' +
-      '<p class="tiny" style="margin-top:28px">Funciona sem internet. Os dados ficam neste aparelho. ' + esc(VERSAO) + '.</p>', null);
+      assinatura() +
+      '<p class="tiny" style="text-align:center;margin-top:6px">Funciona sem internet. Os dados ficam neste aparelho. ' + esc(VERSAO) + '.</p>', null);
   }
 
   /* ================= PREPARAR · configuração ================= */
@@ -2064,7 +2094,7 @@ table.t td.num{text-align:right}
         '<button class="btn primary big" id="btnMontado" type="button" data-act="montado">' + (solo ? 'Embaralhei sem olhar' : 'Xícaras na mesa') + '</button></div>', 'preparar');
       announce('Tela privativa de montagem.');
     } else if (e.fase === 'entrega') {
-      render('<div class="handoff"><svg class="glyph" viewBox="0 0 84 84" aria-hidden="true"><circle cx="42" cy="42" r="38" fill="none" stroke="#3c4a43" stroke-width="3"/><path d="M26 46h32M48 36l10 10-10 10" fill="none" stroke="#34c38f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      render('<div class="handoff"><svg class="glyph" viewBox="0 0 84 84" aria-hidden="true"><circle cx="42" cy="42" r="38" fill="none" stroke="#2f5961" stroke-width="3"/><path d="M26 46h32M48 36l10 10-10 10" fill="none" stroke="#5bb8bd" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
         '<h2>Entregue o tablet para ' + esc(plan.taster) + '</h2><p class="muted">Quem preparou se afasta da mesa.</p>' +
         (e.aguaEm ? clockHtml(e.aguaEm, infusaoMin(s)) : '') +
         '<div class="actions"><button class="btn primary big" id="btnProntoProvar" type="button" data-act="pronto-provar">Sou ' + esc(plan.taster) + ', vou provar</button>' +
@@ -2510,7 +2540,7 @@ table.t td.num{text-align:right}
       '<p class="tiny">As regras olham: série completa, preparo, número de mudanças, resultado do triângulo, escolhas pelo objetivo e o método de preparo. Nenhuma medida é inventada, nenhum valor de gás é prescrito e nenhuma nota na xícara é prevista.</p>';
 
     render((s.demo ? '<div class="demo-flag">DEMONSTRAÇÃO — dados fictícios, não são de torra real</div>' : '') +
-      '<h2>Relatório · ' + esc(A) + ' × ' + esc(B) + '</h2><p class="tiny">' + fmtDT(s.criadaEm) + ' · ' + esc(VERSAO) + (s.status === 'interrompida' ? ' · série interrompida' : '') + '</p>' + legado +
+      assinatura('topo') + '<h2>Relatório · ' + esc(A) + ' × ' + esc(B) + '</h2><p class="tiny">' + fmtDT(s.criadaEm) + ' · ' + esc(VERSAO) + (s.status === 'interrompida' ? ' · série interrompida' : '') + '</p>' + legado +
       '<section class="verdict" aria-labelledby="rSintLab"><div class="lab" id="rSintLab">O que percebi na xícara</div>' + xicara +
       '<div class="lab">Quanto os dados sustentam</div><div class="conf ' + CF.nivel + '" id="rConfianca"><b>' + esc(CF.tipo) + '</b><span class="nv">' + esc(CF.titulo) + '</span><span>' + esc(CF.porque) + '</span></div>' +
       '<div class="lab">O que faço agora</div><p class="dec" id="rDecisao">' + esc(D.decisao) + '</p>' +
@@ -2992,33 +3022,17 @@ table.t td.num{text-align:right}
 /* PWA — marca, manifesto e instalação (preservado da v1, com a marca v2) */
 (function () {
   'use strict';
-  const BG = '#0f1412', EM = '#34c38f', CREAM = '#e9dcc6', COPPER = '#d68a5c';
+  /* Ícones e manifesto são arquivos (icon.svg é o mestre; PNGs e manifest.webmanifest ao lado).
+     A marca da barra usa a geometria do favicon (traço e folgas maiores), feita para ~30 px:
+     triângulo equilátero, xícaras concêntricas com folga igual, a diferente (cobre) no topo. */
+  /* cores da marca: triângulo pêssego, xícaras caramelo, a diferente = "olho" do escudo (anel cobre, miolo café) */
+  const PESSEGO = '#fad9b8', CARAMELO = '#da9c5e', COBRE = '#ba744d', CAFE = '#5d3007';
   const $ = s => document.querySelector(s);
-  function mark(tile) {
-    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">' + (tile ? '<rect width="512" height="512" rx="116" fill="' + BG + '"/>' : '') +
-      '<path d="M256 108 L408 380 L104 380 Z" fill="none" stroke="' + EM + '" stroke-width="30" stroke-linejoin="round"/>' +
-      '<circle cx="256" cy="200" r="34" fill="' + CREAM + '"/><circle cx="196" cy="318" r="34" fill="' + CREAM + '"/><circle cx="316" cy="318" r="34" fill="' + COPPER + '"/></svg>';
-  }
-  const bm = $('#brandMark'); if (bm) bm.innerHTML = mark(false);
-  function svgToPng(svg, size) {
-    return new Promise(res => { const img = new Image();
-      img.onload = () => { try { const cv = document.createElement('canvas'); cv.width = cv.height = size; cv.getContext('2d').drawImage(img, 0, 0, size, size); res(cv.toDataURL('image/png')); } catch (e) { res(null); } };
-      img.onerror = () => res(null); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); });
-  }
-  (async function () {
-    try {
-      const svg = mark(true);
-      const [p32, p180, p192, p512] = await Promise.all([svgToPng(svg, 32), svgToPng(svg, 180), svgToPng(svg, 192), svgToPng(svg, 512)]);
-      if (p32) $('#favicon').href = p32;
-      if (p180) $('#appleIcon').href = p180;
-      if (p192 && p512 && location.protocol !== 'file:') {
-        const manifest = { name: 'Triângulo OCR · Original Coffee Roaster', short_name: 'Triângulo OCR', description: 'Da mesa à decisão de torra: triângulo cego, ficha descritiva e escolha pelo objetivo.',
-          start_url: '.', scope: '.', display: 'standalone', background_color: BG, theme_color: BG, lang: 'pt-BR',
-          icons: [{ src: p192, sizes: '192x192', type: 'image/png', purpose: 'any' }, { src: p512, sizes: '512x512', type: 'image/png', purpose: 'any' }, { src: p512, sizes: '512x512', type: 'image/png', purpose: 'maskable' }] };
-        $('#manifestLink').href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' }));
-      }
-    } catch (e) { /* */ }
-  })();
+  const bm = $('#brandMark');
+  if (bm) bm.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="51 26 410 410">' +
+    '<path d="M256 81 L82.79 381 L429.21 381 Z" fill="none" stroke="' + PESSEGO + '" stroke-width="34" stroke-linejoin="round"/>' +
+    '<circle cx="256" cy="230.23" r="30.32" fill="' + COBRE + '"/><circle cx="256" cy="230.23" r="17.92" fill="' + CAFE + '"/>' +
+    '<circle cx="212.03" cy="306.39" r="30.32" fill="' + CARAMELO + '"/><circle cx="299.97" cy="306.39" r="30.32" fill="' + CARAMELO + '"/></svg>';
   const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
   const btn = $('#installBtn'); let deferred = null;

@@ -1,0 +1,21 @@
+{
+  "id": "./",
+  "name": "Triângulo OCR · Original Coffee Roaster",
+  "short_name": "Triângulo OCR",
+  "description": "Da mesa à decisão de torra: triângulo cego, ficha descritiva e escolha pelo objetivo.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#104a53",
+  "theme_color": "#0a1c20",
+  "categories": ["food", "productivity", "utilities"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
