@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Triângulo OCR">
 <meta name="application-name" content="Triângulo OCR">
-<meta name="ocr-build" content="v2.6">
+<meta name="ocr-build" content="v2.7">
 <link rel="manifest" id="manifestLink">
 <link rel="icon" id="favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23161d1a'/%3E%3Cpath d='M32 15 L49 46 L15 46 Z' fill='none' stroke='%2334c38f' stroke-width='4' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" id="appleIcon" href="">
@@ -234,6 +234,20 @@ details.x > .in{padding:0 16px 16px}
 /* "Quanto posso confiar?": a categoria vem escrita; a cor só reforça */
 .conf{border-left:3px solid var(--line-2);padding:2px 0 2px 12px;margin:6px 0 14px;font-size:15px;color:var(--ink-2)}
 .conf b{display:block;font-size:17px;color:var(--ink);margin-bottom:2px}
+.conf .nv{display:block;font-size:14px;color:var(--ink-2);margin-bottom:2px}
+/* v2.7: o que percebi na xícara · importação .alog · custo dos planos · torra A × B */
+.xic{list-style:none;padding:0;margin:6px 0 12px;font-size:17px;line-height:1.4;color:var(--ink)}
+.xic li{margin:6px 0}
+.xic b{display:block;font-size:13px;color:var(--muted);font-weight:600}
+.alog-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.alog-cell .btn{width:100%}
+.alog-cell .tiny{margin-top:4px;word-break:break-word}
+table.planos{font-size:14px;margin-top:10px}
+table.planos th,table.planos td{padding:6px 5px}
+tr.plano-atual td{background:var(--em-soft)}
+.tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.torra-ab{font-size:14px;min-width:560px}
+@media (max-width:620px){.alog-row{grid-template-columns:1fr}}
 .conf.sustentada{border-left-color:var(--em)} .conf.indicativa,.conf.limitada{border-left-color:var(--warn)} .conf.sem-conclusao,.conf.observacao{border-left-color:var(--danger)}
 @media print{.conf{border-left-color:#111!important;color:#111}.conf b{color:#111}}
 .quick{list-style:none;padding:0;margin:14px 0}
@@ -659,6 +673,239 @@ table.t td.num{text-align:right}
 })(this);
 
 /* ============================================================
+   Triângulo OCR — leitura de .alog do Artisan (pura, sem DOM)
+   O .alog é um literal Python (repr de dict). É lido como DADO por um leitor
+   próprio: nada do arquivo é executado (sem eval, sem Function). Aceita só
+   dict, list, tuple, texto, número, True/False/None; qualquer outra coisa recusa.
+   Origem de cada valor: medido (sensor) · marcado (evento marcado no Artisan) ·
+   artisan (calculado pelo Artisan) · app (calculado por este app) · registro (digitado no Artisan).
+   ============================================================ */
+(function (root) {
+  'use strict';
+  const MAX_CHARS = 6 * 1024 * 1024, MAX_DEPTH = 40;
+  function erro(msg) { const e = new Error(msg); e.alog = true; return e; }
+
+  /* ---------- leitor de literal Python (somente dados) ---------- */
+  function parsePy(src) {
+    if (typeof src !== 'string') throw erro('o arquivo não é texto');
+    if (src.length > MAX_CHARS) throw erro('arquivo grande demais para um .alog');
+    let i = 0; const n = src.length;
+    const fail = m => { throw erro(m + ' (posição ' + i + ')'); };
+    function ws() {
+      while (i < n) {
+        const c = src[i];
+        if (c === ' ' || c === '\t' || c === '\n' || c === '\r') i++;
+        else if (c === '#') { while (i < n && src[i] !== '\n') i++; }
+        else break;
+      }
+    }
+    function str() {
+      let raw = false;
+      while (i < n && /[uUbBrR]/.test(src[i])) { if (/[rR]/.test(src[i])) raw = true; i++; }
+      const q = src[i];
+      if (q !== "'" && q !== '"') fail('conteúdo inesperado');
+      const triple = src.substr(i, 3) === q + q + q;
+      i += triple ? 3 : 1;
+      let out = '';
+      for (;;) {
+        if (i >= n) fail('texto sem fim');
+        const c = src[i];
+        if (triple ? src.substr(i, 3) === q + q + q : c === q) { i += triple ? 3 : 1; return out; }
+        if (!triple && c === '\n') fail('quebra de linha dentro de texto');
+        if (c === '\\' && !raw) {
+          const e = src[i + 1]; i += 2;
+          const map = { n: '\n', t: '\t', r: '\r', '\\': '\\', "'": "'", '"': '"', '0': '\0', a: '\x07', b: '\b', f: '\f', v: '\v' };
+          if (Object.prototype.hasOwnProperty.call(map, e)) out += map[e];
+          else if (e === 'x') { const h = src.substr(i, 2); if (!/^[0-9a-fA-F]{2}$/.test(h)) fail('escape inválido'); out += String.fromCharCode(parseInt(h, 16)); i += 2; }
+          else if (e === 'u') { const h = src.substr(i, 4); if (!/^[0-9a-fA-F]{4}$/.test(h)) fail('escape inválido'); out += String.fromCharCode(parseInt(h, 16)); i += 4; }
+          else if (e === 'U') { const h = src.substr(i, 8); if (!/^[0-9a-fA-F]{8}$/.test(h)) fail('escape inválido'); out += String.fromCodePoint(parseInt(h, 16)); i += 8; }
+          else if (e === '\n') { /* continuação de linha */ }
+          else out += '\\' + e;
+          continue;
+        }
+        out += c; i++;
+      }
+    }
+    function num() {
+      const m = /^[-+]?(?:\d+\.?\d*(?:[eE][-+]?\d+)?|\.\d+(?:[eE][-+]?\d+)?)/.exec(src.slice(i, i + 64));
+      if (!m) fail('número inválido');
+      i += m[0].length;
+      const v = Number(m[0]);
+      if (!isFinite(v)) fail('número inválido');
+      return v;
+    }
+    function seq(fim, d) {
+      const out = [];
+      for (;;) {
+        ws(); if (src[i] === fim) { i++; return out; }
+        out.push(val(d + 1)); ws();
+        if (src[i] === ',') { i++; continue; }
+        if (src[i] === fim) { i++; return out; }
+        fail('lista mal formada');
+      }
+    }
+    function val(d) {
+      if (d > MAX_DEPTH) fail('estrutura profunda demais');
+      ws();
+      const c = src[i];
+      if (c === '{') {
+        i++; const o = Object.create(null);
+        for (;;) {
+          ws(); if (src[i] === '}') { i++; return o; }
+          const k = val(d + 1);
+          if (typeof k !== 'string' && typeof k !== 'number') fail('chave inválida');
+          ws(); if (src[i] !== ':') fail('esperava ":"'); i++;
+          o[String(k)] = val(d + 1); ws();
+          if (src[i] === ',') { i++; continue; }
+          if (src[i] === '}') { i++; return o; }
+          fail('dicionário mal formado');
+        }
+      }
+      if (c === '[') { i++; return seq(']', d); }
+      if (c === '(') { i++; return seq(')', d); }
+      if (c === "'" || c === '"' || (/[uUbBrR]/.test(c) && /['"]/.test(src[i + 1] || '') ) || (/[uUbBrR]/.test(c) && /[uUbBrR]/.test(src[i + 1] || '') && /['"]/.test(src[i + 2] || ''))) return str();
+      if (/[-+.\d]/.test(c)) return num();
+      const w = /^[A-Za-z_]+/.exec(src.slice(i, i + 16));
+      if (w) {
+        if (w[0] === 'True') { i += 4; return true; }
+        if (w[0] === 'False') { i += 5; return false; }
+        if (w[0] === 'None') { i += 4; return null; }
+        fail('palavra não aceita: ' + w[0]);
+      }
+      fail('conteúdo inesperado');
+    }
+    const v = val(0); ws();
+    if (i < n) fail('conteúdo extra no fim do arquivo');
+    return v;
+  }
+
+  /* ---------- identificação a partir do nome do arquivo ---------- */
+  const RE_OCR = /OCR[\s_-]*0*(\d{1,5})/i;
+  function identificar(nome, d) {
+    const stem = String(nome || '').replace(/^.*[\\/]/, '').replace(/\.alog$/i, '').trim();
+    const m = RE_OCR.exec(stem);
+    const ocr = m ? 'OCR ' + m[1] : stem;
+    let resto = m ? (stem.slice(0, m.index) + ' ' + stem.slice(m.index + m[0].length)) : '';
+    resto = resto.replace(/[_\-–—·|()[\]]+/g, ' ').replace(/\s+/g, ' ').trim();
+    /* só sugere café quando o resto do nome parece um nome de café, não uma descrição do arquivo */
+    const descricao = /\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|artisan|original|regravad|c[oó]pia|backup|teste|vers[aã]o|\bv\d/i.test(resto);
+    const cafeArquivo = /[A-Za-zÀ-ÿ]{3,}/.test(resto) && !descricao && resto.length <= 60 ? resto : '';
+    const title = typeof d.title === 'string' ? d.title.trim() : '';
+    const beans = typeof d.beans === 'string' ? d.beans.trim() : '';
+    const pistas = [], conflitos = [];
+    if (title && !/^roaster scope$/i.test(title)) {
+      const sem = title.replace(/^torra\s*(?:ocr)?\s*[-–:]?\s*/i, '').trim();
+      pistas.push({ campo: 'title', texto: title, sugestao: sem && sem.length <= 60 ? sem : '' });
+    }
+    if (beans) {
+      const pareceNota = beans.length > 40 || /mbar|g[aá]s|\bar\s*\d|creio|teste|torra|entrei|drop|crack/i.test(beans);
+      pistas.push({ campo: 'beans', texto: beans, sugestao: pareceNota ? '' : beans });
+    }
+    [title, beans].forEach(x => { const mm = RE_OCR.exec(x || ''); if (mm && m && mm[1] !== m[1]) conflitos.push('o arquivo menciona OCR ' + mm[1] + ', mas o nome do arquivo é ' + ocr); });
+    return { ocr, cafeArquivo, pistas, conflitos };
+  }
+
+  /* ---------- resumo do perfil ---------- */
+  const fin = x => typeof x === 'number' && isFinite(x);
+  const r1 = x => Math.round(x * 10) / 10;
+  function resumir(d, nome) {
+    if (!d || typeof d !== 'object' || Array.isArray(d)) throw erro('o conteúdo não é um perfil do Artisan');
+    const timex = Array.isArray(d.timex) ? d.timex : null, bt = Array.isArray(d.temp2) ? d.temp2 : null;
+    if (!timex || !bt || timex.length < 2 || bt.length !== timex.length) throw erro('o arquivo não tem a curva (timex/temp2): não parece um .alog do Artisan');
+    if (!Array.isArray(d.timeindex)) throw erro('o arquivo não tem as marcações da torra (timeindex): não parece um .alog do Artisan');
+    const N = timex.length, avisos = [], conflitos = [];
+    const unidade = d.mode === 'F' ? '°F' : d.mode === 'C' ? '°C' : null;
+    if (!unidade) avisos.push('unidade de temperatura não informada (campo mode)');
+    const ti = Array.isArray(d.timeindex) ? d.timeindex.slice(0, 8) : [];
+    while (ti.length < 8) ti.push(0);
+    const valido = x => Number.isInteger(x) && x >= 0 && x < N && fin(timex[x]);
+    const charge = valido(ti[0]) ? ti[0] : null;
+    if (charge == null) avisos.push('sem marcação de CHARGE: tempos relativos não calculados');
+    const marca = (pos, rot) => { const x = ti[pos]; if (!x) return null; if (!valido(x)) { avisos.push(rot + ' com posição inválida no arquivo: ignorado'); return null; } return x; };
+    const dry = marca(1, 'fim da secagem'), fcs = marca(2, '1º crack'), drop = marca(6, 'DROP');
+    if (fcs == null) avisos.push('1º crack não marcado');
+    if (drop == null) avisos.push('DROP não marcado');
+    const t0 = charge != null ? timex[charge] : null;
+    const rel = x => (x == null || t0 == null) ? null : r1(timex[x] - t0);
+    const temp = x => (x != null && fin(bt[x]) ? r1(bt[x]) : null);
+    const ordem = [['CHARGE', charge], ['fim da secagem', dry], ['1º crack', fcs], ['DROP', drop]].filter(p => p[1] != null);
+    let ordemOk = true;
+    for (let k = 1; k < ordem.length; k++) if (ordem[k][1] <= ordem[k - 1][1]) { ordemOk = false; conflitos.push(ordem[k][0] + ' marcado antes de ' + ordem[k - 1][0]); }
+    const campos = {};
+    const put = (k, v, o, extra) => { if (v != null) campos[k] = Object.assign({ v, o }, extra || {}); };
+    if (charge != null) put('carga', temp(charge), 'medido', { u: unidade, nota: 'BT na marcação de CHARGE' });
+    const comp = d.computed && typeof d.computed === 'object' ? d.computed : {};
+    if (fin(comp.TP_time) && fin(comp.TP_BT)) put('tp', { t: r1(comp.TP_time), bt: r1(comp.TP_BT) }, 'artisan', { u: unidade });
+    if (charge != null && ordemOk) {
+      if (dry != null) put('amarelo', { t: rel(dry), bt: temp(dry) }, 'marcado', { u: unidade });
+      if (fcs != null) put('fc', { t: rel(fcs), bt: temp(fcs) }, 'marcado', { u: unidade });
+      if (drop != null) {
+        put('drop', { t: rel(drop), bt: temp(drop) }, 'marcado', { u: unidade });
+        put('total', rel(drop), 'app', { u: 's' });
+        if (fcs != null) { const dev = r1(rel(drop) - rel(fcs)); put('dev', dev, 'app', { u: 's' }); if (rel(drop) > 0) put('dtr', r1(dev / rel(drop) * 100), 'app', { u: '%' }); }
+      }
+    }
+    if (fin(comp.fcs_ror)) put('rorFc', r1(comp.fcs_ror), 'artisan', { u: (unidade || '°') + '/min', nota: 'janela e suavização do Artisan' });
+    const confere = (rot, a, b, tol, u) => { if (a != null && fin(b) && Math.abs(a - b) > tol) conflitos.push(rot + ': app ' + a + u + ' × Artisan ' + r1(b) + u); };
+    confere('tempo total', campos.total && campos.total.v, comp.totaltime, 1.5, ' s');
+    confere('1º crack', campos.fc && campos.fc.v.t, comp.FCs_time, 1.5, ' s');
+    confere('desenvolvimento', campos.dev && campos.dev.v, comp.finishphasetime, 1.5, ' s');
+    confere('BT no DROP', campos.drop && campos.drop.v.bt, comp.DROP_BT, 0.3, ' ' + (unidade || ''));
+    const w = Array.isArray(d.weight) ? d.weight : [], wu = typeof w[2] === 'string' ? w[2] : '';
+    if (fin(w[0]) && w[0] > 0) put('pesoVerde', w[0], 'registro', { u: wu, nota: 'digitado no Artisan; confira se é a carga real (pode ser a capacidade da máquina)' });
+    else avisos.push('peso verde não registrado');
+    if (fin(w[1]) && w[1] > 0) put('pesoTorrado', w[1], 'registro', { u: wu });
+    else avisos.push('peso torrado não registrado (0 no arquivo): perda de massa indisponível');
+    if (campos.pesoVerde && campos.pesoTorrado) {
+      if (w[1] < w[0]) put('perda', r1((1 - w[1] / w[0]) * 100), 'app', { u: '%' });
+      else conflitos.push('peso torrado não é menor que o verde');
+    }
+    const cor = [];
+    if (fin(d.whole_color) && d.whole_color > 0) cor.push('grão ' + d.whole_color);
+    if (fin(d.ground_color) && d.ground_color > 0) cor.push('moído ' + d.ground_color);
+    if (cor.length) put('cor', cor.join(' · ') + (typeof d.color_system === 'string' && d.color_system ? ' (' + d.color_system + ')' : ''), 'registro');
+    else avisos.push('cor não registrada');
+    /* eventos: o valor numérico do Artisan é posição interna do controle; a unidade real está no texto */
+    const etypes = Array.isArray(d.etypes) ? d.etypes : [];
+    const ev = Array.isArray(d.specialevents) ? d.specialevents : [], tp = Array.isArray(d.specialeventstype) ? d.specialeventstype : [];
+    const ss = Array.isArray(d.specialeventsStrings) ? d.specialeventsStrings : [];
+    const eventos = []; let descartados = 0;
+    ev.forEach((x, k) => {
+      if (!valido(x)) { descartados++; return; }
+      const tipo = typeof etypes[tp[k]] === 'string' ? etypes[tp[k]] : 'tipo ' + tp[k];
+      const grupo = /burner|g[aá]s|queimador/i.test(tipo) ? 'gas' : /^air|^ar\b|airflow|fan|ventil/i.test(tipo) ? 'ar' : 'outro';
+      const texto = typeof ss[k] === 'string' ? ss[k].trim() : '';
+      const m = /(-?\d+(?:[.,]\d+)?)\s*(mbar|kpa|pa|psi|%)/i.exec(texto);
+      const fase = charge == null ? 'sem CHARGE' : x < charge ? 'antes da carga' : (drop != null && x > drop) ? 'após o DROP' : 'durante a torra';
+      eventos.push({ t: rel(x), tipo, grupo, texto, valor: m ? Number(m[1].replace(',', '.')) : null, unidade: m ? m[2] : null, fase, o: 'marcado' });
+    });
+    if (descartados) avisos.push(descartados + ' evento(s) com posição inválida ignorado(s)');
+    eventos.sort((a, b) => (a.t == null ? -1e9 : a.t) - (b.t == null ? -1e9 : b.t));
+    const gas = eventos.filter(e => e.grupo === 'gas');
+    if (gasSemMudanca(eventos)) avisos.push('gás sem mudanças registradas durante a torra (só a configuração inicial)');
+    if (gas.some(e => e.valor == null)) avisos.push('evento de gás sem número e unidade no texto: valor não interpretado');
+    const data = (typeof d.roastisodate === 'string' ? d.roastisodate : '') + (typeof d.roasttime === 'string' && d.roasttime ? ' ' + d.roasttime.slice(0, 5) : '');
+    const anot = {};
+    ['title', 'beans', 'roastingnotes', 'cuppingnotes'].forEach(k => { if (typeof d[k] === 'string' && d[k].trim() && !(k === 'title' && /^roaster scope$/i.test(d[k].trim()))) anot[k] = d[k].trim(); });
+    const id = identificar(nome, d);
+    return { arquivo: String(nome || '').replace(/^.*[\\/]/, ''), artisan: typeof d.version === 'string' ? d.version : '', data: data.trim(), unidade,
+      campos, eventos, avisos, conflitos: id.conflitos.concat(conflitos), id: { ocr: id.ocr, cafeArquivo: id.cafeArquivo, pistas: id.pistas }, anotacoes: anot };
+  }
+  function lerAlog(texto, nome) {
+    if (!String(texto || '').trim()) throw erro('arquivo vazio');
+    return resumir(parsePy(texto), nome);
+  }
+  /* há gás registrado, mas nenhum ajuste depois do primeiro dentro da torra: o arquivo só tem a configuração inicial */
+  function gasSemMudanca(eventos) {
+    const gas = (eventos || []).filter(e => e.grupo === 'gas');
+    return gas.length > 0 && !gas.slice(1).some(e => e.fase === 'durante a torra');
+  }
+
+  const api = { parsePy, identificar, resumir, lerAlog, gasSemMudanca };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.OCRALOG = api;
+})(this);
+
+/* ============================================================
    Catálogo sensorial OCR v2.0 — redação própria, pt-BR
    Não reproduz definições, referências nem a roda da SCA/WCR.
    ============================================================ */
@@ -886,6 +1133,50 @@ table.t td.num{text-align:right}
     return out;
   }
 
+  /* ---------- torra A × B a partir dos .alog importados (associação, nunca prova de causa) ---------- */
+  const valT = (I, k, f) => { const c = I && I.campos && I.campos[k]; if (!c) return null; const v = c.v; return f ? (v && typeof v === 'object' ? v[f] : null) : (typeof v === 'number' ? v : null); };
+  function difsTorra(s) {
+    const IA = s.torra && s.torra.A && s.torra.A.importado, IB = s.torra && s.torra.B && s.torra.B.importado;
+    if (!IA || !IB) return null;
+    const u = IA.unidade || IB.unidade || '', itens = [];
+    const add = (k, rot, a, b, lim, un) => { if (a == null || b == null) return; const d = Math.round((b - a) * 10) / 10; itens.push({ k, rot, a, b, d, un, notavel: Math.abs(d) >= lim }); };
+    add('total', 'tempo total', valT(IA, 'total'), valT(IB, 'total'), 15, 's');
+    add('fc', '1º crack', valT(IA, 'fc', 't'), valT(IB, 'fc', 't'), 15, 's');
+    add('dev', 'desenvolvimento', valT(IA, 'dev'), valT(IB, 'dev'), 10, 's');
+    add('dtr', 'DTR', valT(IA, 'dtr'), valT(IB, 'dtr'), 1, 'p.p.');
+    add('drop', 'BT no DROP', valT(IA, 'drop', 'bt'), valT(IB, 'drop', 'bt'), 1, u);
+    add('carga', 'carga (BT)', valT(IA, 'carga'), valT(IB, 'carga'), 3, u);
+    add('rorFc', 'RoR no 1º crack (Artisan)', valT(IA, 'rorFc'), valT(IB, 'rorFc'), 1, u + '/min');
+    const gasPosFc = I => { const fct = valT(I, 'fc', 't'); if (fct == null) return null;
+      const ev = (I.eventos || []).filter(e => e.grupo === 'gas' && e.fase === 'durante a torra' && e.valor != null && e.t >= fct); return ev.length ? ev.map(e => e.valor) : null; };
+    const semGas = ['A', 'B'].filter(L => { const ev = (L === 'A' ? IA : IB).eventos || []; return !ev.some(e => e.grupo === 'gas') || window.OCRALOG.gasSemMudanca(ev); });
+    const lacunas = [['perda', 'perda de massa'], ['cor', 'cor']].filter(([k]) => !IA.campos[k] || !IB.campos[k])
+      .map(([k, rot]) => !IA.campos[k] && !IB.campos[k] ? rot : rot + ' de ' + (IA.campos[k] ? 'B' : 'A'));
+    return { itens, gasPosFc: { A: gasPosFc(IA), B: gasPosFc(IB) }, semGas, lacunas, unidade: u };
+  }
+  const fmtNum = v => String(Math.round(v * 10) / 10).replace('.', ',');
+  const fmtDif = it => (it.d > 0 ? '+' : it.d < 0 ? '−' : '±') + fmtNum(Math.abs(it.d)) + ' ' + it.un;
+  /* para uma hipótese na amostra L: os dados de torra acompanham ou não? (L − outra) */
+  function torraParaHipotese(s, chave, L) {
+    const D = difsTorra(s); if (!D) return null;
+    const sg = L === 'B' ? 1 : -1, outra = L === 'A' ? 'B' : 'A', by = k => D.itens.find(i => i.k === k);
+    const lado = it => it ? sg * it.d : null, partes = [];
+    let pro = 0, contra = 0;
+    const olha = (k, sinalEsperado) => { const it = by(k); if (!it || !it.notavel) return; const v = lado(it); partes.push(it.rot + ' ' + L + ' ' + (v > 0 ? '+' : '−') + fmtNum(Math.abs(v)) + ' ' + it.un + ' vs ' + outra); if (Math.sign(v) === sinalEsperado) pro++; else contra++; };
+    if (chave === 'subdev') { olha('dev', -1); olha('dtr', -1); olha('drop', -1); }
+    else if (chave === 'overdev') { olha('dev', 1); olha('dtr', 1); olha('drop', 1); }
+    else if (chave === 'baked') { olha('rorFc', -1); olha('total', 1); }
+    else if (chave === 'facing') {
+      olha('drop', 1);
+      const gL = D.gasPosFc[L], gO = D.gasPosFc[outra];
+      if (gL || gO) { const mL = gL ? gL[gL.length - 1] : null, mO = gO ? gO[gO.length - 1] : null; /* último ajuste antes do DROP: o calor que fica no fim */
+        partes.push('gás depois do 1º crack (último ajuste é o que fica até o DROP): ' + L + ' ' + (gL ? gL.map(fmtNum).join('→') + ' mbar' : 'sem registro') + ' · ' + outra + ' ' + (gO ? gO.map(fmtNum).join('→') + ' mbar' : 'sem registro'));
+        if (mL != null && mO != null) { if (mL > mO) pro++; else if (mL < mO) contra++; } }
+    }
+    if (!partes.length) return 'Dados dos .alog: nenhuma diferença marcante de torra ligada a esta hipótese entre ' + L + ' e ' + outra + '.';
+    return 'Dados dos .alog (associação, não prova causa): ' + partes.join('; ') + ' — ' + (pro && !contra ? 'acompanha a hipótese' : contra && !pro ? 'não acompanha a hipótese' : pro && contra ? 'sinais mistos' : 'nada aqui pesa a favor ou contra') + '.';
+  }
+
   function hypotheses(s) {
     const sg = signals(s); const res = [];
     ['A', 'B'].forEach(L => {
@@ -906,9 +1197,12 @@ table.t td.num{text-align:right}
         const grao = s.investigacao && s.investigacao.grao && s.investigacao.grao[L];
         if (curva) favor.push('Observação da curva (' + ocr + '): ' + curva);
         if (grao) favor.push('Inspeção do grão (' + ocr + '): ' + grao);
-        if (tr && tr.alog) favor.push('Curva vinculada: ' + tr.alog + ' (dados não lidos pelo app).');
+        const viaAlog = torraParaHipotese(s, h.chave, L), D = difsTorra(s);
+        if (viaAlog) favor.push(viaAlog);
+        else if (tr && tr.alog) favor.push('Curva vinculada: ' + tr.alog + ' (importe os dois .alog para comparar a torra).');
+        const falta = D && D.lacunas.length ? ' Medir ' + D.lacunas.join(' e ') + ' (ausentes nos .alog).' : '';
         res.push({ amostra: L, ocr, chave: h.chave, titulo: h.titulo, status: 'hipótese', observado: 'Observado: ' + partes.join('; ') + '.',
-          favor, alternativas: h.alternativas.slice(), proximo: h.proximo, historico: HISTORICO[h.chave] || [] });
+          favor, alternativas: h.alternativas.slice(), proximo: h.proximo + falta, historico: HISTORICO[h.chave] || [] });
       });
     });
     return res;
@@ -922,12 +1216,9 @@ table.t td.num{text-align:right}
     const alvo = st.sim.chanceIguais >= 0.8 ? 0.9 : 0.8;
     return { n: C.nForSim(st.sim.pdMax, st.sim.beta, alvo, k, st.valid), alvo };
   }
-  /* Resultado nulo curto demais (pd até ≥ 25 %): a próxima série precisa de mais rodadas para dizer algo. */
-  function nSugerido(st, nPlan, k) {
-    if (st && st.desenho === 'semelhanca') return st.complete && !st.sig && !st.sim.similar ? (nSimProximo(st, k).n || nPlan) : nPlan;
-    if (!st || !st.complete || st.sig !== false) return nPlan;
-    return C.pdBounds(st.valid, st.hits, 0.95).pdUpper >= 0.25 ? (C.nSmallPd(k, nPlan) || nPlan) : nPlan;
-  }
+  /* Desde a v2.7 a próxima sessão NÃO é escalada sozinha para dezenas de tríades: repete o plano usado.
+     Quanto custaria confirmar com mais rodadas aparece como informação nos passos da decisão. */
+  function nSugerido(st, nPlan) { return nPlan; }
   function decide(s) {
     const passos = [];
     const add = (regra, aplica, texto) => passos.push({ regra, aplica: !!aplica, texto });
@@ -938,6 +1229,7 @@ table.t td.num{text-align:right}
     let sintese = '', decisao = '', confirmarB = false, controleProx = (s.par && s.par.A.ocr) || 'A';
     const sm = st && st.sim, pdT = sm ? Math.round(sm.pdMax * 100) + ' %' : '';
     const k = C.kAvaliadores(s.modo, s.avaliadores), nPlan = (s.tri && s.tri.nPlanejado) || 12;
+    const faixaTri = Math.ceil(6 / k) * k + ' a ' + Math.ceil(9 / k) * k; /* planos curtos, em múltiplos do número de avaliadores */
 
     if (st) {
       if (!st.complete) sintese = 'Série incompleta: ' + st.valid + ' de ' + st.nPlanejado + ' rodadas válidas. Sem conclusão estatística.';
@@ -947,7 +1239,7 @@ table.t td.num{text-align:right}
       else if (st.sig) sintese = 'Distinguimos as torras: ' + st.hits + ' de ' + st.valid + ' acertos (limiar ' + st.crit + ', p = ' + fmtP(st.p) + ').';
       else sintese = 'Diferença não detectada nas condições desta prova: ' + st.hits + ' de ' + st.valid + ' acertos (limiar ' + st.crit + ', p = ' + fmtP(st.p) + ').';
       if (st.complete && st.exploratory.length) sintese += ' Leitura exploratória (' + st.exploratory.join(', ') + ').';
-    } else sintese = 'Sessão só descritiva: não houve teste de diferença.';
+    } else sintese = 'Comparação cega A/B (observação de bancada): não houve teste de diferença.';
     if (pt.total) sintese += ' Preferência para o objetivo: ' + B + ' ' + pt.B + ' · ' + A + ' ' + pt.A + ' · sem preferência ' + pt.nenhuma + '.';
     else sintese += ' Ninguém registrou preferência para o objetivo.';
 
@@ -980,38 +1272,50 @@ table.t td.num{text-align:right}
         const pb = C.pdBounds(st.valid, st.hits, 0.95), nx = nSimProximo(st, k);
         decisao = 'Sem conclusão: nem semelhança (máximo ' + sm.kmax + ' acertos) nem diferença (limiar ' + st.crit + ') foram demonstradas com ' + st.hits + ' de ' + st.valid + '. ' +
           'Os dados são compatíveis tanto com torras iguais quanto com até ' + pct(pb.pdUpper) + ' de distinguidores (95 %). Manter o controle (' + A + '). ' +
-          (nx.n ? 'Se a mudança importa, série nova com n = ' + nx.n + ' (' + Math.round(nx.alvo * 100) + ' % de chance de demonstrar semelhança, se as torras forem iguais).' :
-            'Nem ' + C.NMAX + ' rodadas dariam ' + Math.round(nx.alvo * 100) + ' % de chance com esta margem: considere uma margem maior.');
+          'Passo prático: repetir a comparação cega A/B em outro dia. ' +
+          (nx.n ? 'Demonstrar semelhança por teste exigiria n = ' + nx.n + ' tríades (' + Math.round(nx.alvo * 100) + ' % de chance, se as torras forem iguais), divisíveis em várias sessões — só vale se a mudança importa.' :
+            'Nem ' + C.NMAX + ' rodadas dariam ' + Math.round(nx.alvo * 100) + ' % de chance com esta margem.');
         add('sim-nao', true, 'Acertos acima do máximo para semelhança (' + sm.kmax + '), sem chegar ao limiar de diferença (' + st.crit + '): resultado inconclusivo para esta pergunta. Não indica o tamanho de uma diferença.'); }
       add('repeticoes', st.distinctTasters < st.valid, 'Repetições da mesma pessoa entram como provas independentes; a ASTM E1885 desaconselha somá-las. A semelhança vale para estes avaliadores, como indicação forte, não como painel.');
       add('preferencia-sim', pt.total > 0, 'Em semelhança a preferência não decide: ela fica registrada como observação.');
     }
     else if (st && st.sig) {
-      if (!pt.total) { decisao = 'Diferença perceptível. Falta a escolha pelo objetivo: registrar a preferência antes de decidir.'; add('preferencia', true, 'Sem preferência registrada, a diferença não diz qual torra serve ao objetivo.'); }
+      if (!pt.total) { decisao = 'Diferença perceptível. Falta a escolha pelo objetivo: fazer a comparação cega A/B (ficha e preferência) com o mesmo par antes de decidir.'; add('preferencia', true, 'Sem preferência registrada, a diferença não diz qual torra serve ao objetivo.'); }
       else if (pt.B > pt.A && pt.B > pt.nenhuma) { decisao = 'A variante (' + B + ') serviu melhor ao objetivo nesta sessão. Confirmar com nova prova cega antes de adotá-la como controle.'; confirmarB = true; add('vantagem', true, 'Diferença detectada e a maioria das escolhas pelo objetivo foi ' + B + '.'); }
       else { decisao = 'Diferença perceptível sem vantagem da variante para o objetivo: manter o controle (' + A + ').'; add('sem-vantagem', true, 'Houve diferença, mas a escolha pelo objetivo não favoreceu ' + B + '.'); }
     } else if (st && st.sig === false) {
       const pb = C.pdBounds(st.valid, st.hits, 0.95), curto = pb.pdUpper >= 0.25;
       decisao = 'Manter o controle (' + A + '): a mudança não chegou à xícara de forma detectável neste n.' +
-        (curto ? ' O teste não descarta uma diferença ' + C.pdBand(pb.pdUpper) + ' — se a mudança importa, repetir com mais rodadas antes de descartá-la.' : ' Se houver diferença, é pequena para estes avaliadores.');
+        (curto ? ' O teste não descarta uma diferença ' + C.pdBand(pb.pdUpper) + ' — se a mudança importa, não a descarte por este resultado: repita a comparação cega A/B em outro dia; um triângulo novo, em série separada, só se precisar confirmar.' : ' Se houver diferença, é pequena para estes avaliadores.');
       add('nao-detectada', true, 'Diferença não detectada nas condições desta prova. Isso não mostra que são iguais — semelhança pede um desenho próprio.');
       add('borda', st.p != null && st.p <= 0.15, 'p de borda (' + fmtP(st.p) + '): se a mudança importa, rodar uma série nova com n maior — nunca somar rodadas a esta.');
       add('alcance', curto, 'Até ' + Math.round(pb.pdUpper * 100) + ' % dos provadores poderiam distinguir (limite de 95 %, ISO 4120): diferença ' + C.pdBand(pb.pdUpper) + ' não descartada.' +
         (C.nSmallPd(k, nPlan) ? ' Com n = ' + C.nSmallPd(k, nPlan) + ', acertos no nível do acaso já permitem afirmar diferença pequena (< 25 %).' : ''));
     } else if (!st) {
-      if (pt.B > pt.A && pt.B > pt.nenhuma) { decisao = 'Nesta descritiva, ' + B + ' foi escolhida para o objetivo — observação sem teste de diferença. Rodar o triângulo antes de adotar.'; confirmarB = true; }
-      else decisao = 'Manter o controle (' + A + '). Sem teste de diferença, a descritiva sozinha não sustenta troca.';
+      /* comparação cega A/B (caminho principal): observação de bancada, ação proporcional e confirmação depois */
+      const nf = fichas(s).length;
+      add('observacao', true, 'Comparação cega A/B: ' + nf + ' ficha(s). Mostra o que foi percebido e preferido nesta sessão; não testa se a diferença se repete. Goles, temperaturas e releituras das mesmas xícaras não são provas independentes.');
+      if (!nf) decisao = 'Nenhuma ficha travada: sem observação para decidir. Fazer a comparação cega A/B.';
+      else if (pt.B > pt.A && pt.B > pt.nenhuma) { confirmarB = true;
+        decisao = 'Observação de bancada a favor de ' + B + ' para o objetivo. Próxima batelada: torrar ' + B + ' de novo e repetir a comparação cega em outro dia (ou com outra pessoa) antes de fixá-la no perfil. Para saber se a diferença é perceptível, um triângulo curto (' + faixaTri + ' tríades) pode confirmar; se não detectar, isso não quer dizer que são iguais.';
+        add('confirmar', true, 'Uma sessão curta pode favorecer B por acaso: a repetição em outro dia é o que separa preferência real de variação de bancada.'); }
+      else if (pt.A > pt.B && pt.A > pt.nenhuma) decisao = 'Observação de bancada a favor de ' + A + ': manter o controle. A mudança não trouxe vantagem para o objetivo nesta sessão.';
+      else decisao = 'Sem preferência clara entre ' + A + ' e ' + B + ': manter o controle. Isso não mostra que são iguais; se a mudança importa, repetir a comparação em outro dia.';
     }
     const obj = (s.par && s.par.objetivo) || '';
     const filtro = /coad|filtr|v60|pour|kalita|chemex|hario|melitta/i.test(obj) && /cupping/i.test((s.preparo && s.preparo.metodo) || '');
     add('filtro', filtro, 'O objetivo é coado e a prova foi em cupping: validar em filtro numa sessão própria, com o preparo registrado.');
     const pr = s.preparo || {};
+    /* próxima prova proporcional: a comparação cega A/B (curta) quando falta preferência ou o triângulo não concluiu; triângulo só para confirmar */
+    const proxAB = !st || (st.complete && (st.sig ? !pt.total : !(sm && sm.similar)));
     const proximo = {
-      controle: controleProx, variante: confirmarB ? B : '', n: nSugerido(st, nPlan, k), adotavel: !!(sm && st.complete && sm.similar && !st.sig && !s.adocao),
+      controle: controleProx, variante: confirmarB ? B : '', n: nSugerido(st, nPlan, k), mod: proxAB ? 'desc' : null, adotavel: !!(sm && st.complete && sm.similar && !st.sig && !s.adocao),
       mudanca: confirmarB ? 'repetir ' + B + ' (confirmação)' : '',
       manter: ['lote ' + (s.lote || '(informar)'), 'preparo: ' + (pr.metodo || '') + ', moagem ' + (pr.moagem || '') + ' (' + (pr.moedor || '') + '), ' + (pr.dose || '') + ' / ' + (pr.agua || '') + ', ' + (pr.temp || ''), 'demais decisões de torra iguais ao controle'],
       criterio: obj ? 'Na ficha cega: ' + obj + '. Preferência pelo objetivo registrada.' : 'Definir o objetivo sensorial antes da prova.',
-      prova: (filtro ? 'Sessão em filtro, preparo registrado; depois ' : '') + 'triângulo cego n = ' + nSugerido(st, nPlan, k) + ' com o mesmo preparo + ficha descritiva e preferência.'
+      prova: (filtro ? 'Sessão em filtro, preparo registrado; depois ' : '') + (st && !proxAB ? 'triângulo cego n = ' + nSugerido(st, nPlan, k) + ' com o mesmo preparo + ficha descritiva e preferência.' :
+        st && st.sig ? 'comparação cega A/B com o mesmo par e o mesmo preparo (2 xícaras), para registrar descrição e preferência; o triângulo já detectou a diferença.' :
+        'comparação cega A/B com o mesmo preparo (2 xícaras), em outro dia ou com outra pessoa; triângulo de ' + faixaTri + ' tríades só se precisar confirmar a diferença.')
     };
     return { sintese, decisao, passos, proximo, stats: st, pref: pt };
   }
@@ -1027,16 +1331,27 @@ table.t td.num{text-align:right}
    */
   const NIVEIS = {
     sustentada: 'Sustentada para estes avaliadores', indicativa: 'Indicativa: confirme antes de mudar a torra',
-    limitada: 'Limitada: o teste foi curto para descartar diferença', 'sem-conclusao': 'Sem conclusão', observacao: 'Só observação: não houve teste'
+    limitada: 'Limitada: o teste foi curto para descartar diferença', 'sem-conclusao': 'Sem conclusão', observacao: 'Observação de bancada, não é teste'
   };
+  /* tipo do resultado (o que a sessão permite dizer): observação prática · diferença detectada ·
+     semelhança demonstrada · inconclusivo · sem conclusão (série incompleta ou preparo comprometido) */
+  function tipoResultado(st, nivel) {
+    if (!st) return 'Observação prática';
+    if (nivel === 'sem-conclusao' && !st.complete) return 'Sem conclusão';
+    if (st.sig) return 'Diferença detectada';
+    if (st.sim && st.sim.similar) return 'Semelhança demonstrada';
+    return nivel === 'sem-conclusao' && st.complete && !st.sim ? 'Sem conclusão' : 'Inconclusivo';
+  }
   function confianca(s) {
     const st = s.modulos && s.modulos.tri ? C.triStats(s) : null;
-    const out = (nivel, porque) => ({ nivel, titulo: NIVEIS[nivel], porque });
-    if (!st) return out('observacao', fichas(s).length + ' ficha(s) descritiva(s), sem triângulo: a ficha descreve e a escolha registra preferência, mas nada separa diferença real de ruído.');
+    const out = (nivel, porque, tipo) => ({ nivel, titulo: NIVEIS[nivel], porque, tipo: tipo || tipoResultado(st, nivel) });
+    if (!st) { const fs = fichas(s), quem = [...new Set(fs.map(f => f.avaliador))];
+      return out('observacao', fs.length + ' ficha(s) cega(s)' + (quem.length ? ' (' + quem.join(', ') + ')' : '') + '. Mostra o que foi percebido e preferido nesta sessão; não testa se a diferença se repete. ' +
+        'Uma sessão curta pode deixar passar diferenças, e "sem preferência" não quer dizer iguais. Goles, temperaturas e releituras das mesmas xícaras não são provas independentes.'); }
     const quem = st.distinctTasters + (st.distinctTasters === 1 ? ' avaliador' : ' avaliadores') + ' (' + Object.entries(st.repsPer).map(([k, v]) => k + ' ' + v).join(', ') + ')';
     const painel = ' Vale para ' + (st.distinctTasters === 1 ? 'este avaliador' : 'estes avaliadores') + ', não para um painel.';
     if (!st.complete) return out('sem-conclusao', 'Série incompleta: ' + st.valid + ' de ' + st.nPlanejado + ' rodadas válidas. A regra travada exige as ' + st.nPlanejado + '.');
-    if (s.preparo && s.preparo.destoou) return out('sem-conclusao', 'O preparo destoou entre A e B: o resultado mistura preparo e torra.');
+    if (s.preparo && s.preparo.destoou) return out('sem-conclusao', 'O preparo destoou entre A e B: o resultado mistura preparo e torra.', 'Sem conclusão');
     const ressalvas = st.exploratory.slice();
     /* a v1 não travava o plano nem registrava desvios: "sem desvio registrado" ali não quer dizer nada */
     if (/^legado/.test(s.origem || '')) ressalvas.push('sessão da v1, sem plano travado nem registro de desvios');
@@ -1061,7 +1376,7 @@ table.t td.num{text-align:right}
       (ressalvas.length ? ' Ressalvas: ' + ressalvas.join(', ') + '.' : '') + painel);
   }
 
-  const api = { SINAIS, FASES, HIP, HISTORICO, NIVEIS, profile, prefTally, signals, hypotheses, decide, confianca, fmtP };
+  const api = { SINAIS, FASES, HIP, HISTORICO, NIVEIS, profile, prefTally, signals, hypotheses, decide, confianca, difsTorra, fmtDif, fmtP };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.OCRAN = api;
 })(this);
 
@@ -1071,8 +1386,8 @@ table.t td.num{text-align:right}
    ============================================================ */
 (function () {
   'use strict';
-  const C = window.OCR, AN = window.OCRAN, LX = window.OCRLEX;
-  const VERSAO = 'v2.6';
+  const C = window.OCR, AN = window.OCRAN, LX = window.OCRLEX, ALOG = window.OCRALOG;
+  const VERSAO = 'v2.7';
   const UI_KEY = 'triangulo_ocr_v3_ui';
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
@@ -1092,8 +1407,13 @@ table.t td.num{text-align:right}
     const r = C.saveStore(ST);
     if (!r.ok) showSaveError(r.error);
     else { const b = $('#saveErr'); if (b) b.remove(); }
-    try { localStorage.setItem(UI_KEY, JSON.stringify({ cur: UI.cur, view: UI.view })); } catch (e) { /* */ }
+    saveUI();
     return r.ok;
+  }
+  /* ponteiro de retomada; na configuração leva o rascunho junto (inclui .alog importados antes de travar) */
+  function saveUI() {
+    if (READONLY) return;
+    try { localStorage.setItem(UI_KEY, JSON.stringify({ cur: UI.cur, view: UI.view, draft: UI.view === 'setup' ? UI.draft : null })); } catch (e) { /* */ }
   }
   function showSaveError(err) {
     if ($('#saveErr')) return;
@@ -1266,19 +1586,20 @@ table.t td.num{text-align:right}
   /* ================= PREPARAR · configuração ================= */
   function grindDefault() { try { return localStorage.getItem(C.GRIND_KEY) || '7,5'; } catch (e) { return '7,5'; } }
   function newDraft(base) {
-    const d = { A: '', B: '', objetivo: '', pergunta: '', lote: '', mudancas: '', avaliadores: [], modo: 'revezamento', preparador: '', mod: 'tri+desc', n: 12, desenho: 'diferenca', pdMax: 0.3,
+    const d = { A: '', B: '', objetivo: '', pergunta: '', lote: '', mudancas: '', avaliadores: [], modo: 'revezamento', preparador: '', mod: 'desc', n: 6, desenho: 'diferenca', pdMax: 0.3,
       preparo: { metodo: 'Cupping SCA (imersão)', moedor: 'Mahlkönig EK43', moagem: grindDefault(), dose: '8,25 g', agua: '150 ml', temp: '93 °C', infusao: '4 min', idadeA: '', idadeB: '', obs: '' },
       torra: { A: C.emptyRoast(), B: C.emptyRoast() }, bench: {}, err: '' };
     return Object.assign(d, base || {});
   }
-  const BENCH = ['Posições 1, 2 e 3 marcadas na mesa', 'Louça equivalente (mesmo modelo e cor)', 'Alças alinhadas para o mesmo lado', 'Códigos OCR embaixo e nenhuma outra pista visível'];
+  const BENCH = ['Posições marcadas na mesa (1 · 2 na comparação A/B; 1 · 2 · 3 no triângulo)', 'Louça equivalente (mesmo modelo e cor)', 'Alças alinhadas para o mesmo lado', 'Códigos OCR embaixo e nenhuma outra pista visível'];
   const RFIELDS = [['gas', 'Gás (mbar) — trajetória ou passos'], ['ar', 'Airflow (AR)'], ['fc', 'Primeiro crack (tempo · BT)'], ['drop', 'DROP (tempo · BT)'],
     ['dev', 'Tempo de desenvolvimento'], ['dtr', 'DTR (%)'], ['ror', 'Trajetória do RoR'], ['perda', 'Perda de massa (%)'], ['cor', 'Cor (quando medida)']];
   function roastFields(prefix, obj, L) {
     return '<label class="f" for="' + prefix + L + '_alog">Referência do .alog (' + L + ')</label><input type="text" id="' + prefix + L + '_alog" data-bind="' + (prefix === 'd' ? 'draft.' : '') + 'torra.' + L + '.alog" value="' + esc(obj.alog) + '" placeholder="ex.: Logs_OCR/OCR 369.alog">' +
       RFIELDS.map(([k, lab]) => '<label class="f" for="' + prefix + L + '_' + k + '">' + lab + '</label><div class="rfield"><input type="text" id="' + prefix + L + '_' + k + '" data-bind="' + (prefix === 'd' ? 'draft.' : '') + 'torra.' + L + '.' + k + '.v" value="' + esc(obj[k].v) + '">' +
-        '<select aria-label="Origem de ' + lab + '" data-bind="' + (prefix === 'd' ? 'draft.' : '') + 'torra.' + L + '.' + k + '.o"><option value="">origem</option><option value="medido"' + (obj[k].o === 'medido' ? ' selected' : '') + '>medido</option><option value="informado"' + (obj[k].o === 'informado' ? ' selected' : '') + '>informado</option></select></div>').join('') +
-      '<p class="tiny">Medido = lido no Artisan ou no .alog. Informado = dito por alguém. Campo vazio = faltante. O app não lê o .alog.</p>';
+        '<select aria-label="Origem de ' + lab + '" data-bind="' + (prefix === 'd' ? 'draft.' : '') + 'torra.' + L + '.' + k + '.o"><option value="">origem</option>' +
+        [['medido', 'medido'], ['marcado', 'marcado no Artisan'], ['calculado', 'calculado'], ['informado', 'informado']].map(([v, t]) => '<option value="' + v + '"' + (obj[k].o === v ? ' selected' : '') + '>' + t + '</option>').join('') + '</select></div>').join('') +
+      '<p class="tiny">Medido = sensor. Marcado = evento marcado no Artisan. Calculado = pelo app ou pelo Artisan (o .alog importado diz qual). Informado = digitado ou dito. Campo vazio = faltante.</p>';
   }
   /* "Você" é só o nome provisório que o modo sozinho cria quando ninguém foi cadastrado.
      Nunca é repetido numa sessão nova nem vale fora do modo sozinho: viraria um provador que não existe. */
@@ -1290,8 +1611,9 @@ table.t td.num{text-align:right}
     if (!s) return null;
     const p = s.preparo || {};
     return { avaliadores: semProvisorio(s.avaliadores), modo: s.modo || 'revezamento', preparador: s.preparador || '',
-      mod: s.modulos.tri && s.modulos.desc ? 'tri+desc' : s.modulos.tri ? 'tri' : 'desc', n: (s.tri && s.tri.nPlanejado) || 12,
-      desenho: (s.tri && s.tri.desenho) || 'diferenca', pdMax: (s.tri && s.tri.pdMax) || 0.3,
+      /* não herda planos longos nem a pergunta de semelhança: são escolhas explícitas, nunca automáticas */
+      mod: s.modulos.tri && s.modulos.desc ? 'tri+desc' : s.modulos.tri ? 'tri' : 'desc', n: Math.min((s.tri && s.tri.nPlanejado) || 6, 12),
+      desenho: 'diferenca', pdMax: (s.tri && s.tri.pdMax) || 0.3,
       preparo: Object.fromEntries(['metodo', 'moedor', 'dose', 'agua', 'temp', 'infusao'].filter(k => p[k] != null && p[k] !== '').map(k => [k, p[k]])), prefill: fmtDate(s.criadaEm) };
   }
   const NMAX = 90;   // semelhança pede séries longas (pd 20 % ⇒ ~86 rodadas para 80 % de chance)
@@ -1304,7 +1626,7 @@ table.t td.num{text-align:right}
     const r = C.simRule(n, pdMax, 0.05), alvo = nSimAlvo(pdMax, k, n), pdTxt = Math.round(pdMax * 100) + ' %';
     const sug = alvo ? 'use n = ' + alvo + (k > 1 ? ' (múltiplo de ' + k + ' avaliadores)' : '') : 'nem ' + NMAX + ' rodadas bastam; aceite um pd maior';
     if (r.kmax < 0) return '<div class="note warn">Com n = ' + n + ' não há como concluir semelhança para pd ≤ ' + pdTxt + '. Para 80 % de chance, ' + sug + '.</div>';
-    return '<div class="note' + (r.chanceIguais < 0.8 ? ' warn' : '') + '"><b>Regra:</b> concluímos semelhança se houver <b>no máximo ' + r.kmax + ' acertos em ' + n + '</b> (pd ≤ ' + pdTxt + ', β = 0,05). ' +
+    return '<div class="note' + (r.chanceIguais < 0.8 ? ' warn' : '') + '"><b>Regra:</b> concluímos semelhança se houver <b>no máximo ' + r.kmax + (r.kmax === 1 ? ' acerto' : ' acertos') + ' em ' + n + '</b> (pd ≤ ' + pdTxt + ', β = 0,05). ' +
       'Se as torras forem de fato iguais, a chance de concluir é <b>' + Math.round(r.chanceIguais * 100) + ' %</b>' + (r.chanceIguais < 0.8 ? '; para 80 %, ' + sug + '.' : '.') +
       '<div class="tiny" style="margin-top:6px">pd é a fração de provadores que distinguiria as torras. 30 % é o valor usual; menor é mais exigente e pede mais rodadas. Série longa pode ser feita em várias sessões: o app retoma de onde parou.</div></div>';
   }
@@ -1316,6 +1638,142 @@ table.t td.num{text-align:right}
     const np = C.nSmallPd(k, n);
     return 'Se não detectar diferença, este n só descarta diferenças acima de ' + Math.round(u * 100) + ' % de distinguidores' +
       (np ? '; para poder dizer que é pequena (< 25 %), use n = ' + np + (k > 1 ? ' (múltiplo de ' + k + ' avaliadores)' : '') + '.' : '.');
+  }
+  /* ================= IMPORTAR .alog (lido no aparelho; nada é enviado nem executado) ================= */
+  const ORIGEM = { medido: 'medido (sensor)', marcado: 'marcado no Artisan', artisan: 'calculado pelo Artisan', app: 'calculado pelo app', registro: 'digitado no Artisan' };
+  const fmtSeg = x => x == null ? '—' : (x < 0 ? '−' : '') + Math.floor(Math.abs(x) / 60) + ':' + String(Math.round(Math.abs(x) % 60)).padStart(2, '0');
+  const num1 = v => v == null ? '—' : String(Math.round(v * 10) / 10).replace('.', ',');
+  const CAMPOS_ALOG = [['carga', 'Carga (BT)'], ['tp', 'Ponto de virada (TP)'], ['amarelo', 'Fim da secagem'], ['fc', '1º crack'], ['drop', 'DROP'], ['total', 'Tempo total'],
+    ['dev', 'Desenvolvimento'], ['dtr', 'DTR'], ['rorFc', 'RoR no 1º crack'], ['pesoVerde', 'Peso verde'], ['pesoTorrado', 'Peso torrado'], ['perda', 'Perda de massa'], ['cor', 'Cor']];
+  function valorAlog(k, c) {
+    if (!c) return '—';
+    const v = c.v, u = c.u ? ' ' + c.u : '';
+    if (k === 'tp' || k === 'amarelo' || k === 'fc' || k === 'drop') return fmtSeg(v.t) + ' · ' + num1(v.bt) + u;
+    if (k === 'total' || k === 'dev') return fmtSeg(v);
+    if (k === 'dtr' || k === 'perda') return num1(v) + ' %';
+    if (k === 'pesoVerde' || k === 'pesoTorrado') return String(Math.round(v * 1000) / 1000).replace('.', ',') + u; /* massa como foi digitada: 3,49 não vira 3,5 */
+    if (typeof v === 'number') return num1(v) + u;
+    return String(v);
+  }
+  function trajetoria(r, grupo) {
+    const ev = (r.eventos || []).filter(e => e.grupo === grupo && e.fase !== 'após o DROP');
+    return ev.map(e => (grupo === 'gas' && e.valor != null ? num1(e.valor) + (e.unidade ? ' ' + e.unidade : '') : e.texto) + (e.fase === 'antes da carga' ? ' (antes da carga)' : ' @' + fmtSeg(e.t))).join(' → ');
+  }
+  /* valores do .alog nos campos de torra da sessão (texto + origem), para quem lê sem abrir a prévia */
+  function alogParaCampos(r) {
+    const c = r.campos, out = {}, set = (k, v, o) => { if (v) out[k] = { v, o }; };
+    const semGas = ALOG.gasSemMudanca(r.eventos);
+    set('gas', trajetoria(r, 'gas') + (semGas ? ' · sem mudanças registradas durante a torra' : ''), 'marcado');
+    set('ar', trajetoria(r, 'ar'), 'marcado');
+    set('fc', c.fc && valorAlog('fc', c.fc), 'marcado'); set('drop', c.drop && valorAlog('drop', c.drop), 'marcado');
+    set('dev', c.dev && valorAlog('dev', c.dev), 'calculado'); set('dtr', c.dtr && valorAlog('dtr', c.dtr), 'calculado');
+    set('ror', c.rorFc && 'no 1º crack ' + valorAlog('rorFc', c.rorFc) + ' (Artisan)', 'calculado');
+    set('perda', c.perda && valorAlog('perda', c.perda), 'calculado'); set('cor', c.cor && c.cor.v, 'informado');
+    return out;
+  }
+  function alogErro(nome, msg) {
+    openModal('<h3 id="mTitle">Não deu para ler ' + esc(nome) + '</h3><p class="small">' + esc(msg) + '.</p>' +
+      '<p class="small">Nada foi alterado: os dados de A e de B continuam como estavam. O conteúdo do arquivo não foi executado.</p>' +
+      '<div class="actions"><button class="btn primary" type="button" data-act="fechar">Entendi</button></div>');
+  }
+  function lerArquivoAlog(file, L, alvo) {
+    if (!file) return;
+    if (file.size > 6 * 1024 * 1024) return alogErro(file.name, 'arquivo grande demais para um .alog');
+    const rd = new FileReader();
+    rd.onload = () => { let r; try { r = ALOG.lerAlog(String(rd.result || ''), file.name); } catch (e) { return alogErro(file.name, e && e.alog ? e.message : 'não consegui interpretar o conteúdo'); } abrirPreviaAlog(L, r, alvo); };
+    rd.onerror = () => alogErro(file.name, 'o aparelho não deixou ler o arquivo');
+    rd.readAsText(file);
+  }
+  function abrirPreviaAlog(L, r, alvo) {
+    UI.alogPend = { L, r, alvo };
+    const s = alvo === 'sessao' ? S() : null, d = UI.draft;
+    const torraAtual = alvo === 'sessao' ? (s.torra[L] || {}) : (d.torra[L] || {});
+    const codAtual = alvo === 'sessao' ? s.par[L].ocr : '';
+    const conf = r.conflitos.slice();
+    if (alvo === 'sessao' && r.id.ocr && r.id.ocr.replace(/[\s_]/g, '') !== codAtual.replace(/[\s_]/g, '')) conf.push('o nome do arquivo indica ' + r.id.ocr + ', mas esta sessão compara ' + codAtual + ' em ' + L);
+    const outro = alvo === 'draft' ? d[L === 'A' ? 'B' : 'A'] : '';
+    if (alvo === 'draft' && outro && r.id.ocr && outro.replace(/[\s_]/g, '') === r.id.ocr.replace(/[\s_]/g, '')) conf.push('a outra amostra já é ' + outro + ': A e B seriam a mesma torra');
+    const linhas = CAMPOS_ALOG.map(([k, rot]) => { const c = r.campos[k];
+      return '<tr><th>' + rot + '</th><td>' + esc(valorAlog(k, c)) + '</td><td class="tiny">' + (c ? esc(ORIGEM[c.o] || c.o) : 'ausente no arquivo') + '</td></tr>'; }).join('') +
+      [['gas', 'Gás'], ['ar', 'Ar']].map(([g, rot]) => '<tr><th>' + rot + '</th><td>' + esc(trajetoria(r, g) || '—') + '</td><td class="tiny">' + (trajetoria(r, g) ? 'marcado no Artisan' : 'ausente no arquivo') + '</td></tr>').join('');
+    const pistas = r.id.pistas.map((p, i) => '<li><span class="tiny">campo ' + esc(p.campo) + ':</span> “' + esc(p.texto.length > 140 ? p.texto.slice(0, 140) + '…' : p.texto) + '”' +
+      (p.sugestao ? ' <button class="btn quiet" type="button" data-act="alog-pista" data-i="' + i + '">Usar “' + esc(p.sugestao) + '” como café</button>' : ' <span class="tiny">(anotação: não usada como nome)</span>') + '</li>').join('');
+    openModal('<h3 id="mTitle">Prévia do .alog · ' + L + ' (' + (L === 'A' ? 'controle' : 'variante') + ')</h3>' +
+      '<p class="tiny">' + esc(r.arquivo) + ' · Artisan ' + esc(r.artisan || '?') + ' · torra de ' + esc(r.data || 'data ausente') + ' · unidade ' + esc(r.unidade || 'ausente') + '. Lido neste aparelho; nada foi enviado.</p>' +
+      (torraAtual.importado ? '<div class="note warn">' + L + ' já tem dados de ' + esc(torraAtual.importado.arquivo) + ': aplicar substitui. A outra amostra não muda.</div>' : '') +
+      '<div class="grid2"><div><label class="f" for="alogCod">Identificação da torra (' + L + ')</label><input type="text" id="alogCod" value="' + esc(alvo === 'sessao' ? codAtual : r.id.ocr) + '"' + (alvo === 'sessao' ? ' disabled' : '') + '></div>' +
+      '<div><label class="f" for="alogCafe">Café</label><input type="text" id="alogCafe" value="' + esc(r.id.cafeArquivo || torraAtual.cafe || '') + '" placeholder="' + (r.id.cafeArquivo ? '' : 'o nome do arquivo só traz o código: confira') + '"></div></div>' +
+      (pistas ? '<p class="small" style="margin-top:10px">Dentro do arquivo (nada é aplicado sozinho):</p><ul class="small">' + pistas + '</ul>' : '') +
+      '<table class="t" style="margin-top:10px"><tr><th>Dado</th><th>Valor</th><th>Origem</th></tr>' + linhas + '</table>' +
+      (r.avisos.length ? '<div class="note warn"><b>Ausente ou incompleto</b><ul class="small">' + r.avisos.map(a => '<li>' + esc(a) + '</li>').join('') + '</ul></div>' : '') +
+      (conf.length ? '<div class="note danger"><b>Conferir antes de aplicar</b><ul class="small">' + conf.map(a => '<li>' + esc(a) + '</li>').join('') + '</ul></div>' : '') +
+      '<div class="actions-2"><button class="btn ghost" type="button" data-act="fechar">Cancelar</button><button class="btn primary" id="alogAplicar" type="button" data-act="alog-aplicar">Aplicar a ' + L + '</button></div>', '#alogAplicar');
+  }
+  function aplicarAlog() {
+    const p = UI.alogPend; UI.alogPend = null;
+    if (!p) return closeModal();
+    const cod = ($('#alogCod') ? $('#alogCod').value.trim() : ''), cafe = ($('#alogCafe') ? $('#alogCafe').value.trim() : '');
+    const r = JSON.parse(JSON.stringify(p.r)); r.cafe = cafe; r.importadoEm = Date.now();
+    const campos = alogParaCampos(r);
+    const aplicar = tr => {
+      (tr.importCampos || []).forEach(k => { tr[k] = { v: '', o: '' }; });   // tira só o que veio da importação anterior; o digitado fica
+      Object.keys(campos).forEach(k => { tr[k] = campos[k]; });
+      tr.alog = r.arquivo; tr.importado = r; tr.cafe = cafe; tr.importCampos = Object.keys(campos);
+    };
+    if (p.alvo === 'sessao') { const s = S(); if (!s) return closeModal(); s.torra[p.L] = s.torra[p.L] || C.emptyRoast(); aplicar(s.torra[p.L]); touch(s); closeModal(); save(); vRelatorioKeep(); toast('Dados de ' + p.L + ' aplicados'); return; }
+    const d = UI.draft; d.torra[p.L] = d.torra[p.L] || C.emptyRoast(); aplicar(d.torra[p.L]);
+    if (cod) d[p.L] = cod;
+    if (!d.lote.trim() && cafe) { const o = d.torra[p.L === 'A' ? 'B' : 'A'].cafe; if (!o || o === cafe) d.lote = cafe; }
+    closeModal(); vSetup(); toast('Dados de ' + p.L + ' aplicados');
+  }
+  function linhaImport(alvo, torra) {
+    return '<div class="alog-row">' + ['A', 'B'].map(L => { const im = torra[L] && torra[L].importado;
+      return '<div class="alog-cell"><button class="btn ghost" type="button" data-act="alog-escolher" data-l="' + L + '" data-alvo="' + alvo + '">' + (im ? 'Trocar' : 'Importar') + ' .alog de ' + L + '</button>' +
+        (im ? '<div class="tiny">✓ ' + esc(im.arquivo) + (im.cafe ? ' · ' + esc(im.cafe) : '') + (im.avisos.length ? ' · ' + im.avisos.length + ' lacuna(s)' : '') + (im.conflitos.length ? ' · ' + im.conflitos.length + ' conflito(s)' : '') + '</div>' :
+          '<div class="tiny">opcional · sugere o código e lê os dados da torra</div>') +
+        '<input type="file" class="sr-only" tabindex="-1" aria-hidden="true" data-alogfile="' + L + '" data-alvo="' + alvo + '"></div>'; }).join('') + '</div>';
+  }
+
+  /* torra A × B lado a lado no relatório (só após revelar): valor, Δ B − A e origem de cada dado */
+  function tabelaTorra(s, A, B) {
+    const IA = s.torra.A && s.torra.A.importado, IB = s.torra.B && s.torra.B.importado;
+    if (!IA && !IB) return '<p class="small">Nenhum .alog importado. Importe os dois para ver a torra lado a lado.</p>';
+    const D = AN.difsTorra(s), MAPA = { total: 'total', fc: 'fc', drop: 'drop', dev: 'dev', dtr: 'dtr', carga: 'carga', rorFc: 'rorFc' };
+    const dif = k => { const it = D && MAPA[k] && D.itens.find(i => i.k === MAPA[k]); return it ? AN.fmtDif(it) : ''; };
+    const cel = (I, k) => I ? (I.campos[k] ? esc(valorAlog(k, I.campos[k])) : '<span class="tiny">ausente</span>') : '<span class="tiny">sem .alog</span>';
+    const org = k => { const c = (IA && IA.campos[k]) || (IB && IB.campos[k]); return c ? ORIGEM[c.o] || c.o : ''; };
+    const meta = [['Arquivo', I => esc(I.arquivo)], ['Data da torra', I => esc(I.data || '—')], ['Café', I => esc(I.cafe || '—')]]
+      .map(([rot, f]) => '<tr><th>' + rot + '</th><td>' + (IA ? f(IA) : '—') + '</td><td>' + (IB ? f(IB) : '—') + '</td><td></td><td></td></tr>').join('');
+    const linhas = CAMPOS_ALOG.map(([k, rot]) => '<tr><th>' + rot + '</th><td>' + cel(IA, k) + '</td><td>' + cel(IB, k) + '</td><td class="num">' + esc(dif(k)) + '</td><td class="tiny">' + esc(org(k)) + '</td></tr>').join('') +
+      [['gas', 'Gás'], ['ar', 'Ar']].map(([g, rot]) => '<tr><th>' + rot + '</th><td class="small">' + (IA ? esc(trajetoria(IA, g) || '—') : '—') + '</td><td class="small">' + (IB ? esc(trajetoria(IB, g) || '—') : '—') + '</td><td></td><td class="tiny">marcado no Artisan</td></tr>').join('');
+    const avisos = [['A', IA], ['B', IB]].filter(([, I]) => I && (I.avisos.length || I.conflitos.length))
+      .map(([L, I]) => '<li><b>' + L + ':</b> ' + esc(I.avisos.concat(I.conflitos).join('; ')) + '</li>').join('');
+    return '<div class="tscroll"><table class="t torra-ab"><tr><th>Dado</th><th>A · ' + esc(A) + '</th><th>B · ' + esc(B) + '</th><th class="num">Δ B − A</th><th>Origem</th></tr>' + meta + linhas + '</table></div>' +
+      (avisos ? '<ul class="small">' + avisos + '</ul>' : '') +
+      '<p class="tiny">Valores lidos dos .alog no aparelho. Origem: medido (sensor), marcado no Artisan, calculado pelo Artisan ou pelo app, digitado no Artisan. Ao lado da xícara, uma diferença de torra é associação, não causa.</p>';
+  }
+
+  /* ================= CUSTO DE CADA PLANO (estimativa a validar na bancada) ================= */
+  const TEMPO = { dose: 1, janela: 8, ficha: 12, triade: 3, revelar: 3 };   // minutos
+  function doseG(d) { const v = parseFloat(String((d.preparo && d.preparo.dose) || '').replace(',', '.')); return v > 0 && v < 50 ? v : 8.25; }
+  function custoPlano(n, dose) {
+    if (!n) { const xic = 2; return { preparos: 1, xic, cafe: (xic + 2) * dose, min: xic * TEMPO.dose + TEMPO.janela + TEMPO.ficha + TEMPO.revelar }; }
+    const xic = 3 * n; return { preparos: n, xic, cafe: (xic + 2) * dose, min: n * (3 * TEMPO.dose + TEMPO.janela + TEMPO.triade) + TEMPO.revelar };
+  }
+  const fmtMin = m => m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') + ' min';
+  /* planos curtos de confirmação: 6, 9 e 12 tríades, levados ao múltiplo do número de avaliadores (repetições iguais) */
+  function planosCurtos(d) { const k = kAval(d); return [...new Set([6, 9, 12].map(v => Math.ceil(v / k) * k))]; }
+  function tabelaPlanos(d, nAtual) {
+    const dose = doseG(d), triAtivo = d.mod !== 'desc';
+    const linha = (rot, n, atual) => { const c = custoPlano(n, dose);
+      const resp = !n ? 'o que você percebe e prefere (observação)' : 'diferença perceptível? limiar ' + C.critical(n) + ' acertos · chance de detectar se metade distinguisse: ' + Math.round(C.power(n, 2 / 3) * 100) + ' %';
+      return '<tr' + (atual ? ' class="plano-atual"' : '') + '><td><b>' + rot + '</b>' + (atual ? ' <span class="tiny">(escolhido)</span>' : '') + '</td><td class="num">' + c.preparos + '</td><td class="num">' + c.xic + '</td><td class="num">' + Math.round(c.cafe) + ' g</td><td class="num">' + fmtMin(c.min) + '</td><td class="tiny">' + resp + '</td></tr>'; };
+    const ns = planosCurtos(d); if (triAtivo && !ns.includes(nAtual)) ns.push(nAtual);
+    return '<table class="t planos"><tr><th>Plano</th><th class="num">Preparos</th><th class="num">Xícaras</th><th class="num">Café</th><th class="num">Tempo</th><th>O que responde</th></tr>' +
+      linha('Comparação cega A/B', 0, !triAtivo) + ns.sort((a, b) => a - b).map(n => linha(n + ' tríades', n, triAtivo && n === nAtual)).join('') + '</table>' +
+      '<p class="tiny">Estimativa, a validar na sua bancada: ' + TEMPO.dose + ' min para pesar e moer cada xícara; ' + TEMPO.janela + ' min da água até provar; ' + TEMPO.ficha + ' min para a ficha A/B; ' + TEMPO.triade +
+      ' min por tríade; ' + TEMPO.revelar + ' min para revelar; café com dose de ' + num1(dose) + ' g e +2 doses de purga (uma por torra). As tríades correm uma depois da outra, como o app conduz — por isso o triângulo não cabe em 30 min; ele pode ser dividido em vários dias (o app retoma). ' +
+      '"Metade distinguisse" = acerto de 2 em 3, sob independência; repetições da mesma pessoa não são um painel. "Não detectado" não quer dizer "igual".</p>';
   }
   function vSetup() {
     const d = UI.draft || (UI.draft = newDraft());
@@ -1330,6 +1788,7 @@ table.t td.num{text-align:right}
       '<div class="card">' +
       '<div class="grid2"><div><label class="f" for="fA">Controle (A) · código OCR</label><input type="text" id="fA" data-bind="draft.A" value="' + esc(d.A) + '" placeholder="OCR_369" autocomplete="off"></div>' +
       '<div><label class="f" for="fB">Variante (B) · código OCR</label><input type="text" id="fB" data-bind="draft.B" value="' + esc(d.B) + '" placeholder="OCR_370" autocomplete="off"></div></div>' +
+      linhaImport('draft', d.torra) +
       '<label class="f" for="fObjetivo">Objetivo da comparação</label><input type="text" id="fObjetivo" data-bind="draft.objetivo" value="' + esc(d.objetivo) + '" placeholder="Melhor finalização para coado, com menos secura e sem perder doçura">' +
       '<label class="f" for="fMudancas">O que mudou na torra entre A e B <span class="tiny">(uma por linha)</span></label><textarea id="fMudancas" data-bind="draft.mudancas" placeholder="gás depois do 1C">' + esc(d.mudancas) + '</textarea>' +
       '<label class="f" for="fLote">Lote do café verde</label><input type="text" id="fLote" data-bind="draft.lote" value="' + esc(d.lote) + '" placeholder="Arara P17 · Fazenda Jangada">' +
@@ -1337,11 +1796,15 @@ table.t td.num{text-align:right}
       '<label class="f">Quem prepara as xícaras</label>' + seg('modo', d.modo, [['dedicado', 'Preparador dedicado'], ['revezamento', 'Revezamento'], ['solo', 'Sozinho (exploratório)']]) +
       (d.modo === 'dedicado' ? '<label class="f" for="fPreparador">Nome de quem prepara (não prova)</label><input type="text" id="fPreparador" data-bind="draft.preparador" value="' + esc(d.preparador) + '">' : '') +
       '<p class="tiny" style="margin-top:8px">' + (d.modo === 'dedicado' ? 'Recomendado: quem prepara nunca prova, e os avaliadores nunca veem um mapa.' : d.modo === 'revezamento' ? 'Cada rodada, um prepara e outro prova. O que você vê ao preparar pertence à sequência do outro avaliador.' : 'Você monta marcando os fundos e embaralha sem olhar. A leitura sempre sai exploratória.') + '</p>' +
-      '<label class="f">O que fazer nesta sessão</label>' + seg('mod', d.mod, [['tri+desc', 'Triângulo e ficha descritiva'], ['tri', 'Só triângulo'], ['desc', 'Só ficha descritiva']]) +
-      (d.mod !== 'desc' ? '<label class="f">Pergunta do triângulo</label>' + seg('desenho', d.desenho, [['diferenca', 'Diferença: a mudança chega à xícara?'], ['semelhanca', 'Semelhança: dá para mudar sem alterar a xícara?']]) +
+      '<label class="f">Como comparar</label>' + seg('mod', d.mod, [['desc', 'Comparação cega A/B (recomendado)'], ['tri+desc', 'A/B + triângulo de confirmação'], ['tri', 'Só triângulo']]) +
+      '<p class="tiny" style="margin-top:8px">' + (d.mod === 'desc' ? 'Duas xícaras às cegas, impressão livre, intensidades e escolha pelo objetivo. Uma observação de bancada que cabe no dia a dia; confirme depois, em outra sessão, se o resultado justificar.' :
+        'O triângulo diz se a diferença é perceptível, ao custo de 3 xícaras por tríade. Use como confirmação.') + '</p>' +
+      tabelaPlanos(d, n) +
+      (d.mod !== 'desc' ? '<label class="f">Pergunta do triângulo</label>' + seg('desenho', d.desenho, [['diferenca', 'Diferença: a mudança chega à xícara?'], ['semelhanca', 'Semelhança (avançado): mudar sem alterar a xícara']]) +
         (d.desenho === 'semelhanca' ? '<label class="f">Diferença tolerada (pd máximo)</label>' + seg('pdmax', String(d.pdMax), [['0.2', '20 %'], ['0.25', '25 %'], ['0.3', '30 %'], ['0.35', '35 %']]) + planoSim(n, d.pdMax, kAval(d)) :
           '<p class="tiny" style="margin-top:8px">Use quando a mudança deveria melhorar a xícara. Se a ideia é mudar <b>sem</b> alterar a xícara (torra mais curta, menos gás, outro lote), escolha Semelhança.</p>') +
         '<label class="f" for="fN">Rodadas do triângulo (n)</label><div class="stepper"><button type="button" id="nMinus" data-act="n-" aria-label="Menos uma rodada">−</button><input type="number" id="fN" min="6" max="' + NMAX + '" value="' + n + '" data-bind="draft.n" inputmode="numeric"><button type="button" id="nPlus" data-act="n+" aria-label="Mais uma rodada">+</button></div>' +
+        '<div class="seg presets" role="group" aria-label="Planos curtos" style="margin-top:8px">' + planosCurtos(d).map(v => '<button type="button" data-nset="' + v + '" aria-pressed="' + (n === v) + '">' + v + ' tríades</button>').join('') + '</div>' +
         '<p class="tiny">Mínimo 6, regra do app — não garante poder estatístico. ' + (d.desenho === 'semelhanca' ? '' : alcanceNulo(n, kAval(d)) + ' ') + (d.avaliadores.length > 1 && d.modo !== 'solo' && n % d.avaliadores.length ? 'Com ' + d.avaliadores.length + ' avaliadores, use um n múltiplo de ' + d.avaliadores.length + ' para repetições iguais.' : '') + '</p>' : '') +
       '<label class="f">Lembrete de bancada</label><div class="bench">' + BENCH.map((t, i) => '<label><input type="checkbox" data-bench="' + i + '"' + (d.bench[i] ? ' checked' : '') + '>' + t + '</label>').join('') + '</div>' +
       '</div>' +
@@ -1749,10 +2212,22 @@ table.t td.num{text-align:right}
     const legLine = s.anotacoesLegadas.length ? ' Anotação legada da v1 — ' + s.anotacoesLegadas.map(legTxt).join('; ') + ' (pista a investigar, não é confirmação).' : '';
     const nextLine = esc(prox.prova) + (D.passos.find(p => p.regra === 'filtro' && p.aplica) ? ' Validar em filtro numa sessão própria.' : '');
     const legado = s.origem !== 'v3' ? '<div class="note warn">Sessão migrada da v1 (' + esc(s.origem) + '). ' + esc(s.notaLegado || '') + '</div>' : '';
+    /* torra A × B (dos .alog importados) — só depois de revelar; associação, nunca causa */
+    const IA = s.torra && s.torra.A && s.torra.A.importado, IB = s.torra && s.torra.B && s.torra.B.importado, D2 = AN.difsTorra(s);
+    const torraNot = D2 ? D2.itens.filter(i => i.notavel) : [];
+    const torraLine = !IA && !IB ? 'Sem .alog importado (dá para importar em "Torra", abaixo).' : !IA || !IB ? 'Só ' + (IA ? 'A' : 'B') + ' tem .alog importado.' :
+      (torraNot.length ? 'B − A: ' + torraNot.map(i => i.rot + ' ' + AN.fmtDif(i)).join(' · ') : 'Sem diferença marcante nos dados importados') +
+      (D2.semGas.length ? ' · gás não registrado durante a torra em ' + D2.semGas.join(' e ') : '') + (D2.lacunas.length ? ' · faltam ' + D2.lacunas.join(' e ') : '') + '.';
+    const descTxt = bigDeltas.length ? bigDeltas.slice(0, 3).map(x => B + ' ' + (x.d > 0 ? 'mais' : 'menos') + ' ' + x.a.name.toLowerCase() + ' (' + fmtSigned(x.d) + ')').join(' · ') : 'intensidades parecidas (diferenças abaixo de 1 ponto)';
+    const xicara = '<ul class="xic" id="rSintese">' +
+      (st ? '<li><b>Distinguir (triângulo)</b>' + (st.complete ? st.hits + ' de ' + st.valid + ' provas acertaram a xícara diferente (por acaso, cerca de ' + Math.round(st.valid / 3) + ')' : 'série incompleta: ' + st.valid + ' de ' + st.nPlanejado + ' rodadas') + '</li>' : '') +
+      '<li><b>Descrição</b>' + (fichas.length ? esc(descTxt) + ' <span class="tiny">· ' + esc(fichasTxt(fichas)) + '</span>' : 'sem ficha descritiva nesta sessão') + '</li>' +
+      '<li><b>Preferência para o objetivo</b>' + esc(prefLine) + '</li></ul>';
     const quick = '<ul class="quick">' +
       '<li><b>' + (st && st.sim ? 'Semelhantes?' : 'Distinguimos?') + '</b><span>' + triLine + '</span></li>' +
       '<li><b>Na xícara</b><span>' + esc(cupLine) + '</span></li>' +
       '<li><b>Para o objetivo</b><span>' + esc(prefLine) + '</span></li>' +
+      '<li><b>Torra A × B</b><span id="rTorraLinha">' + esc(torraLine) + '</span></li>' +
       '<li><b>Diagnóstico</b><span>' + esc(diagLine + legLine) + '</span></li>' +
       '<li><b>Próxima batelada</b><span>' + nextLine + '</span></li></ul>';
 
@@ -1833,7 +2308,11 @@ table.t td.num{text-align:right}
       '<h3>Observações da curva de RoR</h3><p class="tiny">Crash e flick são observações da curva, com o contexto da medição (janela de RoR, suavização, fonte). Não viram diagnóstico sensorial.</p>' +
       ['A', 'B'].map(L => '<label class="f" for="invCurva' + L + '">' + L + ' · ' + esc(s.par[L].ocr) + '</label><input type="text" id="invCurva' + L + '" data-bind="investigacao.curva.' + L + '" value="' + esc(s.investigacao.curva[L]) + '" placeholder="ex.: queda do RoR depois do 1C · janela 30 s · Artisan">').join('');
     /* torra */
-    const torra = '<div class="grid2"><div><h3 style="margin-top:0">A · ' + esc(A) + '</h3>' + roastFields('r', s.torra.A, 'A') + '</div><div><h3 style="margin-top:0">B · ' + esc(B) + '</h3>' + roastFields('r', s.torra.B, 'B') + '</div></div>';
+    const torra = linhaImport('sessao', s.torra) + tabelaTorra(s, A, B) +
+      '<h3>Campos de torra (editáveis)</h3><div class="grid2"><div><h3 style="margin-top:0">A · ' + esc(A) + '</h3>' + roastFields('r', s.torra.A, 'A') + '</div><div><h3 style="margin-top:0">B · ' + esc(B) + '</h3>' + roastFields('r', s.torra.B, 'B') + '</div></div>';
+    const assoc = D2 && fichas.length ? '<h3 style="margin-top:0">Torra × xícara</h3><p class="small">Na xícara (B − A): ' + esc(descTxt) + '.<br>Na torra (B − A): ' +
+      esc(torraNot.length ? torraNot.map(i => i.rot + ' ' + AN.fmtDif(i)).join(' · ') : 'sem diferença marcante nos .alog') + '.</p>' +
+      '<p class="tiny">Associação para orientar a próxima medição, não prova de causa: o mesmo efeito pode vir do grão, da idade pós-torra ou do preparo.' + (D2.lacunas.length ? ' Próximo dado a medir: ' + esc(D2.lacunas.join(' e ')) + ' (ausentes nos .alog).' : '') + '</p>' : '';
     /* próxima batelada */
     const nxt = '<label class="f" for="nxCtrl">Controle</label><input type="text" id="nxCtrl" data-bind="proximo.controle" value="' + esc(prox.controle) + '">' +
       '<label class="f" for="nxMud">Uma mudança planejada</label><input type="text" id="nxMud" data-bind="proximo.mudanca" value="' + esc(prox.mudanca) + '" placeholder="uma só decisão de torra; o valor sai da sua curva, não do app">' +
@@ -1845,8 +2324,8 @@ table.t td.num{text-align:right}
 
     render((s.demo ? '<div class="demo-flag">DEMONSTRAÇÃO — dados fictícios, não são de torra real</div>' : '') +
       '<h2>Relatório · ' + esc(A) + ' × ' + esc(B) + '</h2><p class="tiny">' + fmtDT(s.criadaEm) + ' · ' + esc(VERSAO) + (s.status === 'interrompida' ? ' · série interrompida' : '') + '</p>' + legado +
-      '<section class="verdict" aria-labelledby="rSintLab"><div class="lab" id="rSintLab">O que aconteceu</div><p class="sint" id="rSintese">' + esc(D.sintese) + '</p>' +
-      '<div class="lab">Quanto posso confiar?</div><div class="conf ' + CF.nivel + '" id="rConfianca"><b>' + esc(CF.titulo) + '</b><span>' + esc(CF.porque) + '</span></div>' +
+      '<section class="verdict" aria-labelledby="rSintLab"><div class="lab" id="rSintLab">O que percebi na xícara</div>' + xicara +
+      '<div class="lab">Quanto os dados sustentam</div><div class="conf ' + CF.nivel + '" id="rConfianca"><b>' + esc(CF.tipo) + '</b><span class="nv">' + esc(CF.titulo) + '</span><span>' + esc(CF.porque) + '</span></div>' +
       '<div class="lab">O que faço agora</div><p class="dec" id="rDecisao">' + esc(D.decisao) + '</p>' +
       '<div class="actions-2 no-print">' + (D.proximo.adotavel ?
         '<button class="btn ghost" id="btnProximoAB" type="button" data-act="proximo-ab">Próximo A/B mantendo ' + esc(A) + '</button><button class="btn primary" id="btnAdotarB" type="button" data-act="proximo-ab" data-controle="B">Adotar ' + esc(B) + ' e criar próximo A/B</button>' :
@@ -1854,7 +2333,7 @@ table.t td.num{text-align:right}
       '<button class="btn ghost" id="btnImprimir" type="button" data-act="imprimir">Imprimir ou salvar PDF</button></div></section>' +
       quick +
       det('rel-exp', 'Experimento', exp) + det('rel-tri', 'Triangulação', triBody) + det('rel-senso', 'Na xícara, lado a lado', senso) + det('rel-pref', 'Preferência para o objetivo', pref) +
-      det('rel-diag', 'Diagnóstico de trabalho', '<h3 style="margin-top:0">Observado nas fichas</h3>' + obsSig + '<h3>Hipóteses</h3>' + hyps + leg + inv) +
+      det('rel-diag', 'Diagnóstico de trabalho', assoc + '<h3' + (assoc ? '' : ' style="margin-top:0"') + '>Observado nas fichas</h3>' + obsSig + '<h3>Hipóteses</h3>' + hyps + leg + inv) +
       det('rel-torra', 'Torra · Atilla 5 kg e Artisan', torra) + det('rel-prox', 'Próxima batelada', nxt) + det('rel-como', 'Como cheguei à decisão', como) +
       '<h3 class="no-print">Exportar</h3><div class="row no-print"><button class="btn ghost" id="expResumo" type="button" data-act="exp-resumo">Copiar resumo (ROAST_HISTORY)</button>' +
       '<button class="btn ghost" id="expCsv" type="button" data-act="exp-csv">CSV</button><button class="btn ghost" id="expJson" type="button" data-act="exp-json">JSON</button><button class="btn ghost" id="expMd" type="button" data-act="exp-md">Nota .md</button></div>' +
@@ -1875,7 +2354,7 @@ table.t td.num{text-align:right}
     const all = ST.sessoes.slice().sort((a, b) => b.criadaEm - a.criadaEm);
     const item = s => {
       const st = s.modulos.tri && (s.tri.revelado || s.status === 'interrompida') ? C.triStats(s) : null;
-      const res = !s.modulos.tri ? 'só descritiva' : s.status === 'interrompida' ? 'incompleta' : !s.tri.revelado ? 'em andamento (oculto)' :
+      const res = !s.modulos.tri ? 'comparação A/B (observação)' : s.status === 'interrompida' ? 'incompleta' : !s.tri.revelado ? 'em andamento (oculto)' :
         st.complete ? resultadoCurto(st) : 'incompleta';
       return '<div class="hist-item"><div><b>' + esc(sessLabel(s)) + '</b> ' + (s.origem !== 'v3' ? '<span class="tag leg">legado v1</span>' : '') + (s.demo ? '<span class="tag leg">demonstração</span>' : '') +
         '<div class="meta">' + fmtDate(s.criadaEm) + ' · ' + esc(res) + (s.status === 'revelada' || s.status === 'interrompida' ? ' · confiança: ' + esc(CONF_CURTA[AN.confianca(s).nivel]) : '') + (s.par.objetivo ? ' · ' + esc(s.par.objetivo) : s.par.pergunta ? ' · ' + esc(s.par.pergunta) : '') + '</div></div>' +
@@ -1950,7 +2429,10 @@ table.t td.num{text-align:right}
     L.push('Preparo: ' + [s.preparo.metodo, 'moagem ' + s.preparo.moagem + ' (' + s.preparo.moedor + ')', s.preparo.dose + '/' + s.preparo.agua, s.preparo.temp, s.preparo.infusao].join(' · ') + (s.preparo.destoou ? ' · PREPARO DESTOOU' : ''));
     if (st) L.push('Triângulo (cego, ISO 4120' + (st.sim ? ', pergunta de SEMELHANÇA' : '') + '): ' + simPrefixo(st) + st.hits + '/' + st.valid + ' válidas · limiar ' + st.crit + ' · α 0,05 · p = ' + AN.fmtP(st.p) + ' · ' + st.distinctTasters + ' avaliador(es) ' + JSON.stringify(st.repsPer) + (st.exploratory.length ? ' · exploratório: ' + st.exploratory.join(', ') : '') + (st.complete ? '' : ' · INCOMPLETA') + (pdInfo(st) ? ' · pd: ' + pdInfo(st).curto : ''));
     L.push('Síntese: ' + D.sintese);
-    L.push('Confiança: ' + a.confianca.titulo + ' — ' + a.confianca.porque);
+    L.push('Força do resultado: ' + a.confianca.tipo + ' · ' + a.confianca.titulo + ' — ' + a.confianca.porque);
+    ['A', 'B'].forEach(X => { const I = s.torra && s.torra[X] && s.torra[X].importado; if (!I) return;
+      L.push('Torra ' + X + ' (' + I.arquivo + (I.cafe ? ', ' + I.cafe : '') + '): ' + ['fc', 'drop', 'total', 'dev', 'dtr', 'rorFc', 'perda'].filter(k => I.campos[k]).map(k => ({ fc: '1C', drop: 'DROP', total: 'total', dev: 'dev', dtr: 'DTR', rorFc: 'RoR 1C', perda: 'perda' })[k] + ' ' + valorAlog(k, I.campos[k])).join(' · ') +
+        (trajetoria(I, 'gas') ? ' · gás ' + trajetoria(I, 'gas') : '') + (I.avisos.length ? ' · lacunas: ' + I.avisos.join('; ') : '')); });
     const fichas = s.desc.fichas.filter(f => f.travada && !f.ladoPendente);
     if (fichas.length) L.push('Descritiva (' + fichasTxt(fichas) + ', escala OCR 1–10 de intensidade): Δ B−A ' + C.AXES.map(x => x.name.toLowerCase() + ' ' + fmtSigned(P.delta[x.k])).join(' · '));
     L.push('Preferência para o objetivo: ' + B + ' ' + a.preferencia.B + ' · ' + A + ' ' + a.preferencia.A + ' · sem preferência ' + a.preferencia.nenhuma + ' · sem resposta ' + a.preferencia.semResposta);
@@ -1988,7 +2470,7 @@ table.t td.num{text-align:right}
       const rev = s.modulos.tri && (s.tri.revelado || s.status === 'interrompida');
       const st = rev ? C.triStats(s) : null;
       rows.push([fmtDate(s.criadaEm), s.origem, s.demo ? 'sim' : 'nao', s.par.A.ocr, s.par.B.ocr, s.par.objetivo || s.par.pergunta || '', s.status,
-        st ? st.valid : '', st ? st.hits : '', st ? st.crit : '', st && st.p != null ? st.p.toFixed(4) : '', !s.modulos.tri ? 'só descritiva' : !rev ? 'oculto (em andamento)' : st.complete ? resultadoCurto(st) : 'incompleta',
+        st ? st.valid : '', st ? st.hits : '', st ? st.crit : '', st && st.p != null ? st.p.toFixed(4) : '', !s.modulos.tri ? 'comparação A/B (observação)' : !rev ? 'oculto (em andamento)' : st.complete ? resultadoCurto(st) : 'incompleta',
         s.desc.revelada ? s.desc.fichas.filter(f => f.travada).length : '']);
     });
     return '﻿' + rows.map(r => r.map(c => { c = String(c == null ? '' : c); return /[",;\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; }).join(',')).join('\n');
@@ -2068,11 +2550,12 @@ table.t td.num{text-align:right}
       const v = $('#val_' + t.dataset.pos + '_' + t.dataset.axis); v.className = 'val'; v.textContent = t.value; t.classList.remove('unset');
       $$('[data-eixo="' + t.dataset.axis + '"][data-pos="' + t.dataset.pos + '"]').forEach(b => b.setAttribute('aria-pressed', 'false')); return; }
     const b = t.dataset.bind; if (!b) return;
-    if (b.startsWith('draft.')) { setPath(UI, b, t.value); if (b === 'draft.n') { /* re-render só no change */ } return; }
+    if (b.startsWith('draft.')) { setPath(UI, b, t.value); saveUI(); return; }
     if (b.startsWith('ficha.')) { setFichaField(b.slice(6), t.value); return; }
   });
   document.addEventListener('change', e => {
     const t = e.target, s = S();
+    if (t.dataset.alogfile) { const file = t.files && t.files[0]; t.value = ''; return lerArquivoAlog(file, t.dataset.alogfile, t.dataset.alvo); }
     if (t.id === 'fileRestaurar') { const file = t.files && t.files[0]; t.value = ''; if (!file) return;
       const rd = new FileReader(); rd.onload = () => abrirRestauro(file.name, String(rd.result || '')); rd.onerror = () => toast('Não consegui ler o arquivo'); rd.readAsText(file); return; }
     if (t.dataset.bench != null) { UI.draft.bench[t.dataset.bench] = t.checked; return; }
@@ -2099,10 +2582,9 @@ table.t td.num{text-align:right}
     /* seleção de xícara */
     if (el.classList.contains('cup')) { $$('.cup').forEach(c => c.setAttribute('aria-checked', 'false')); el.setAttribute('aria-checked', 'true'); $('#btnConfirmar').disabled = false; return; }
     if (el.dataset.modo) { UI.draft.modo = el.dataset.modo; if (el.dataset.modo !== 'solo') UI.draft.avaliadores = semProvisorio(UI.draft.avaliadores); vSetup(); return; }
-    if (el.dataset.desenho) { UI.draft.desenho = el.dataset.desenho;
-      if (el.dataset.desenho === 'semelhanca') { const alvo = nSimAlvo(UI.draft.pdMax, kAval(UI.draft), 6);   // repetições iguais por avaliador e 80 % de chance
-        if (alvo && (parseInt(UI.draft.n, 10) || 12) < alvo) UI.draft.n = alvo; }
-      vSetup(); return; }
+    /* desde a v2.7 escolher semelhança NÃO sobe o n sozinho: a regra e a chance real aparecem, o n é escolha sua */
+    if (el.dataset.desenho) { UI.draft.desenho = el.dataset.desenho; vSetup(); return; }
+    if (el.dataset.nset) { UI.draft.n = Number(el.dataset.nset); vSetup(); return; }
     if (el.dataset.pdmax) { UI.draft.pdMax = Number(el.dataset.pdmax); vSetup(); return; }
     if (el.dataset.mod) { UI.draft.mod = el.dataset.mod; vSetup(); return; }
     if (el.dataset.lexfam != null) { const v = el.dataset.lexfam === 'Todas' ? null : el.dataset.lexfam; const inModal = !!$('#modalRoot .modal');
@@ -2206,7 +2688,7 @@ table.t td.num{text-align:right}
         const adotar = el.dataset.controle === 'B', ctrl = adotar ? s.par.B.ocr : (p.controle || s.par.A.ocr);
         if (adotar) { s.adocao = { controle: s.par.B.ocr, em: Date.now() }; touch(s); save(); }
         UI.draft = newDraft({ A: ctrl, B: p.variante || '', objetivo: s.par.objetivo, lote: s.lote, avaliadores: s.avaliadores.slice(), modo: s.modo, preparador: s.preparador,
-          mod: s.modulos.tri && s.modulos.desc ? 'tri+desc' : s.modulos.tri ? 'tri' : 'desc', n: p.n || s.tri.nPlanejado,
+          mod: AN.decide(s).proximo.mod || (s.modulos.tri && s.modulos.desc ? 'tri+desc' : s.modulos.tri ? 'tri' : 'desc'), n: p.n || s.tri.nPlanejado,
           desenho: s.tri.desenho || 'diferenca', pdMax: s.tri.pdMax || 0.3, mudancas: p.mudanca && !/^repetir/.test(p.mudanca) ? p.mudanca : '',
           preparo: JSON.parse(JSON.stringify(s.preparo)), origemProximo: s.id });
         UI.draft.preparo.destoou = false; UI.draft.torra.A = JSON.parse(JSON.stringify(ctrl === s.par.B.ocr ? s.torra.B : s.torra.A));
@@ -2220,6 +2702,9 @@ table.t td.num{text-align:right}
       case 'baixar-bruto': download('triangulo_ocr_dados_' + fileStamp() + '.json', UI.raw || '', 'application/json'); return;
       case 'exportar-tudo': download('triangulo_ocr_backup_' + fileStamp() + '.json', JSON.stringify(ST, null, 2), 'application/json'); return toast('Download do backup iniciado');
       case 'restaurar': if (!READONLY) $('#fileRestaurar').click(); return;
+      case 'alog-escolher': { const inp = $('[data-alogfile="' + el.dataset.l + '"][data-alvo="' + el.dataset.alvo + '"]'); if (inp) inp.click(); return; }
+      case 'alog-aplicar': return aplicarAlog();
+      case 'alog-pista': { const p = UI.alogPend && UI.alogPend.r.id.pistas[Number(el.dataset.i)]; if (p && p.sugestao && $('#alogCafe')) { $('#alogCafe').value = p.sugestao; $('#alogCafe').focus(); } return; }
       case 'restaurar-ok': return aplicarRestauro();
       case 'demo': { let d = ST.sessoes.find(x => x.demo); if (!d) { d = makeDemo(); ST.sessoes.push(d); } UI.cur = d.id; return go('relatorio'); }
       case 'abrir': { const x = ST.sessoes.find(y => y.id === el.dataset.id); if (!x) return; UI.cur = x.id; if (OPEN.includes(x.status)) return resume(x.id); return go('relatorio'); }
@@ -2250,6 +2735,9 @@ table.t td.num{text-align:right}
 
   /* ---------------- ajuda ---------------- */
   $('#helpBtn').addEventListener('click', () => openModal('<h3 id="mTitle">Por que este método</h3>' +
+    '<p><b>Caminho do dia a dia: comparação cega A/B.</b> Duas xícaras em posições sorteadas, impressão livre antes da lista, intensidades e, à parte, a escolha pelo objetivo. Cabe numa sessão curta e diz o que você percebeu e preferiu. É uma observação de bancada, não um teste: goles, temperaturas e releituras das mesmas xícaras não contam como provas independentes, e "sem preferência" não quer dizer iguais. Antes de fixar uma mudança no perfil, repita em outro dia ou com outra pessoa.</p>' +
+    '<p><b>Triângulo, para confirmar:</b> quando precisar saber se a diferença é perceptível. Planos curtos (6 a 12 tríades) mostram na configuração o custo em preparos, xícaras, café e tempo, e a chance de detectar. Um resultado abaixo do limiar continua inconclusivo. O plano fica travado: não dá para provar até "dar certo" e parar.</p>' +
+    '<p><b>Dados do .alog:</b> lidos no próprio aparelho, sem executar o arquivo. Cada valor diz a origem (medido, marcado no Artisan, calculado pelo Artisan ou pelo app, digitado). Ficam fora das telas de prova e, no relatório, aparecem ao lado da xícara como associação, nunca como causa.</p>' +
     '<p><b>O triângulo responde uma pergunta:</b> conseguimos distinguir as duas torras? Três xícaras, duas iguais; acertar por sorte acontece uma vez em três. O app compara os acertos com a cauda exata da binomial (α = 0,05).</p>' +
     '<p><b>Por que o resultado fica oculto:</b> saber se acertou muda a forma de provar as próximas rodadas. Esconder reduz essa influência — mas não elimina memória, fadiga, ordem e resíduo na boca.</p>' +
     '<p><b>Repetições:</b> a mesma pessoa pode repetir rodadas no teste de diferença (ISO 4120:2021). A conclusão fala desses avaliadores; um painel tem 24 a 30 pessoas.</p>' +
@@ -2277,6 +2765,8 @@ table.t td.num{text-align:right}
     const s = ptr && ST.sessoes.find(x => x.id === ptr.cur);
     if (s && (s.status === 'triangulo' || s.status === 'descritiva')) return resume(s.id);
     if (s && ptr.view === 'relatorio') { UI.cur = s.id; return go('relatorio'); }
+    /* configuração em andamento (com .alog já importados) volta como estava; o checklist de bancada é refeito */
+    if (ptr && ptr.view === 'setup' && ptr.draft && typeof ptr.draft === 'object') { UI.draft = Object.assign(newDraft(), ptr.draft, { bench: {}, err: '' }); return go('setup'); }
     go('home');
   }
   boot();

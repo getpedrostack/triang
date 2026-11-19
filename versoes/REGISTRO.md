@@ -4,6 +4,31 @@ Uma entrada por rodada, a mais recente no topo. A próxima rodada começa lendo 
 
 ---
 
+## 2026-11-19 · rodada 7 · v2.6 → v2.7 (`index.html`)
+
+**Origem → entrega.** `index.html` v2.6 (md5 3bdd3036, igual ao publicado; arquivado como `versoes/index_v2-6_3bdd3036.html`) → `index.html` v2.7 (md5 no commit). Base: pedido do usuário e a proposta `docs/2026-11-19-importacao-alog-e-bancada.md` (outra sessão; mantida fora do commit). Commit local; **não enviado** ao GitHub.
+
+**Problema.** (1) Os dados de torra eram digitados à mão, embora existam os `.alog` do Artisan. (2) O caminho padrão era o triângulo de 12 tríades e a semelhança subia o n sozinha para 39–44: dezenas de preparos para uma decisão de bancada de 30 min.
+
+**Mudança aplicada.**
+- `OCRALOG`: leitor próprio do literal Python do `.alog` (só dados; sem `eval`/`Function`; 6 MB, profundidade 40). Sugere OCR pelo nome do arquivo; café só com nome além do código; `title`/`beans` viram pistas, e anotações não viram nome. Extrai carga, TP, fim da secagem, 1C, DROP, total, desenvolvimento, DTR, RoR no 1C, pesos, perda (peso torrado 0 = ausente), cor e eventos de gás/ar com o texto e a unidade do Artisan. Cada valor tem origem: medido, marcado, Artisan, app, digitado. Avisos: lacunas, gás só com a configuração inicial (`gasSemMudanca`), conflitos de código.
+- Configuração e relatório: importar A e B, prévia editável, "Aplicar". Arquivo inválido mostra o motivo e não altera nada. O rascunho da configuração sobrevive ao recarregar (`triangulo_ocr_v3_ui.draft`, só o resumo, sem curvas).
+- Caminho padrão: "Comparação cega A/B (recomendado)", `mod: 'desc'`. O triângulo é confirmação, com planos curtos (6/9/12 levados ao múltiplo de k) e uma tabela de preparos, xícaras, café, tempo estimado e chance de detectar. A semelhança é opção avançada e não sobe mais o n. "Nova comparação" limita n a 12.
+- Relatório: "O que percebi na xícara" (distinguir · descrição · preferência), "Quanto os dados sustentam" (tipo: Observação prática / Diferença detectada / Semelhança demonstrada / Inconclusivo / Sem conclusão) e "O que faço agora". Também tabela Torra A × B, diferenças notáveis e hipóteses com dados do `.alog` (associação, não causa). A próxima prova é proporcional (`proxAB`): A/B curta quando falta preferência ou o triângulo não concluiu; "Criar próximo A/B" herda o modo.
+- Ajuda "Por quê?" começa pela A/B e pelo `.alog`.
+
+**Evidência (navegador, tablet 768×1024; .alog reais de `Logs_OCR`).**
+- OCR 344/345: valores da prévia iguais à leitura em Python (1C 10:00 · 205,5 °C; DROP 11:24 · 216,5 °C; DTR 12,3 %; 345: DTR 12,0 %, DROP 216,7 °C). O café ficou vazio (só OCR no nome). OCR 347: título "Torra OCR - Catuai Vermelho" vira pista; perda de 12,7 % (3,49 kg). OCR 348: `beans` com anotação longa marcada como anotação. OCR 363: aviso de gás só inicial. A partir de 31 arquivos, o parser deu o mesmo resultado que o `ast` do Python, sem conflito com o `computed` do Artisan.
+- Recarregar com A/B importados restaura o rascunho. Arquivos `__import__`, `lambda`, HTML, vazio, `{}`, sem curva: recusados com o motivo, sem execução, A/B intactos. Um derivado sem DROP/1C mostra "ausente no arquivo", sem inventar.
+- A/B sozinho: nenhuma pista de OCR da montagem até travar; retomada no passo 3 da ficha; ~33 toques do "Nova comparação" ao relatório. A/B em dupla: quem montou recebe posições novas; retomada no meio da ficha.
+- Relatórios: A/B "Observação prática"; triângulo 5/6 "Diferença detectada" (p 0,018); 4/9 "Inconclusivo" (pd até 62 %, "não quer dizer iguais"). Backup (4 sessões, 83 KB) → apagar → restaurar: dados importados e eventos intactos. Exportações, Caderno, biblioteca, treino e demonstração sem erro.
+
+**Limites.** Os tempos (25 min A/B; 6 tríades ≈ 1 h 27) são estimativa, não medida na bancada. Em dupla, a segunda ficha pede xícaras novas. "Peso verde 4/5 kg" pode ser a capacidade digitada.
+
+**Próxima oportunidade.** Cronometrar uma A/B real na bancada e ajustar `TEMPO`. Avaliar se a dupla pode provar as mesmas xícaras quando há uma terceira pessoa montando, sem gastar o segundo par.
+
+---
+
 ## 2026-11-19 · rodada 6 · v2.5 → v2.6 (`index.html`)
 
 **Origem → entrega.** `index.html` v2.5 (md5 c7c661be, igual ao publicado; arquivado como `versoes/index_v2-5_c7c661be.html`) → `index.html` v2.6 (md5 3bdd3036). Commit local; **não enviado** ao GitHub (publicar só a pedido).
