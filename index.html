@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Triângulo OCR">
 <meta name="application-name" content="Triângulo OCR">
-<meta name="ocr-build" content="v2.7">
+<meta name="ocr-build" content="v2.8">
 <link rel="manifest" id="manifestLink">
 <link rel="icon" id="favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23161d1a'/%3E%3Cpath d='M32 15 L49 46 L15 46 Z' fill='none' stroke='%2334c38f' stroke-width='4' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" id="appleIcon" href="">
@@ -1387,7 +1387,7 @@ table.t td.num{text-align:right}
 (function () {
   'use strict';
   const C = window.OCR, AN = window.OCRAN, LX = window.OCRLEX, ALOG = window.OCRALOG;
-  const VERSAO = 'v2.7';
+  const VERSAO = 'v2.8';
   const UI_KEY = 'triangulo_ocr_v3_ui';
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
@@ -1756,23 +1756,62 @@ table.t td.num{text-align:right}
   /* ================= CUSTO DE CADA PLANO (estimativa a validar na bancada) ================= */
   const TEMPO = { dose: 1, janela: 8, ficha: 12, triade: 3, revelar: 3 };   // minutos
   function doseG(d) { const v = parseFloat(String((d.preparo && d.preparo.dose) || '').replace(',', '.')); return v > 0 && v < 50 ? v : 8.25; }
+  /* custo da comparação A/B com f fichas: com um preparador que não prova (dedicado ou "um monta, outro prova") as fichas usam o mesmo par,
+     uma depois da outra no tablet; no revezamento cada ficha pede um par novo, montado por quem não vai prová-lo, com relógio novo */
+  function custoAB(fichas, paresNovos, dose) {
+    const pares = paresNovos ? fichas : 1, xic = 2 * pares;
+    return { preparos: pares, xic, cafe: (xic + 2) * dose,
+      min: paresNovos ? fichas * (2 * TEMPO.dose + TEMPO.janela + TEMPO.ficha) + TEMPO.revelar : 2 * TEMPO.dose + TEMPO.janela + fichas * TEMPO.ficha + TEMPO.revelar };
+  }
   function custoPlano(n, dose) {
-    if (!n) { const xic = 2; return { preparos: 1, xic, cafe: (xic + 2) * dose, min: xic * TEMPO.dose + TEMPO.janela + TEMPO.ficha + TEMPO.revelar }; }
+    if (!n) return custoAB(1, false, dose);
     const xic = 3 * n; return { preparos: n, xic, cafe: (xic + 2) * dose, min: n * (3 * TEMPO.dose + TEMPO.janela + TEMPO.triade) + TEMPO.revelar };
   }
-  const fmtMin = m => m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') + ' min';
+  const fmtMin = m => { m = Math.round(m); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') + ' min'; };
+  const META_MIN = 30;   /* meta de bancada pedida pelo usuário para a comparação cotidiana; conferida pelo tempo medido, não prometida */
+  /* Tempo de bancada MEDIDO pelo app: do plano travado à revelação (preparo até a água + prova). Pausa longa (> 2 h) não vale como medida. */
+  function tempoBancada(s) {
+    if (!s || s.origem !== 'v3' || s.demo) return null;
+    const ini = s.criadaEm, fim = s.desc.reveladaEm || (s.modulos.tri ? s.tri.reveladoEm : null);
+    if (!ini || !fim || fim <= ini) return null;
+    const aguas = (s.desc.sorteios || []).map(x => x.aguaEm).concat([s.desc.aguaEm]).filter(x => x && x >= ini && x <= fim);
+    const agua = aguas.length ? Math.min(...aguas) : null, total = (fim - ini) / 60000;
+    return { total, preparo: agua ? (agua - ini) / 60000 : null, prova: agua ? (fim - agua) / 60000 : null,
+      pares: Math.max((s.desc.sorteios || []).length, s.desc.alocacao ? 1 : 0), fichas: s.desc.fichas.filter(f => f.travada).length,
+      triades: s.modulos.tri ? (s.tri.rodadas || []).length : 0, valida: total <= 120 };
+  }
+  function fmtBancada(tb) {
+    if (!tb) return '';
+    if (!tb.valida) return 'sessão com pausa longa (' + fmtMin(tb.total) + '): não serve como medida da bancada';
+    const partes = (tb.triades ? tb.triades + ' tríade(s)' : '') + (tb.fichas ? (tb.triades ? ', ' : '') + tb.pares + (tb.pares === 1 ? ' par' : ' pares') + ', ' + tb.fichas + (tb.fichas === 1 ? ' ficha' : ' fichas') : '');
+    const dif = Math.round(tb.total - META_MIN);
+    return fmtMin(tb.total) + ' do plano travado à revelação' + (tb.preparo != null ? ' (até a água ' + fmtMin(tb.preparo) + ' · da água à revelação ' + fmtMin(tb.prova) + ')' : '') +
+      (partes ? ' · ' + partes : '') + ' · meta ' + META_MIN + ' min: ' + (dif <= 0 ? 'dentro' : dif + ' min acima');
+  }
+  /* medidas reais das últimas comparações A/B (só ficha), para calibrar a estimativa com a sua bancada */
+  function medidasAB() {
+    return ST.sessoes.filter(x => !x.modulos.tri).map(x => ({ s: x, tb: tempoBancada(x) })).filter(o => o.tb && o.tb.valida && o.tb.fichas)
+      .sort((a, b) => b.s.criadaEm - a.s.criadaEm).slice(0, 5);
+  }
   /* planos curtos de confirmação: 6, 9 e 12 tríades, levados ao múltiplo do número de avaliadores (repetições iguais) */
   function planosCurtos(d) { const k = kAval(d); return [...new Set([6, 9, 12].map(v => Math.ceil(v / k) * k))]; }
   function tabelaPlanos(d, nAtual) {
     const dose = doseG(d), triAtivo = d.mod !== 'desc';
-    const linha = (rot, n, atual) => { const c = custoPlano(n, dose);
-      const resp = !n ? 'o que você percebe e prefere (observação)' : 'diferença perceptível? limiar ' + C.critical(n) + ' acertos · chance de detectar se metade distinguisse: ' + Math.round(C.power(n, 2 / 3) * 100) + ' %';
-      return '<tr' + (atual ? ' class="plano-atual"' : '') + '><td><b>' + rot + '</b>' + (atual ? ' <span class="tiny">(escolhido)</span>' : '') + '</td><td class="num">' + c.preparos + '</td><td class="num">' + c.xic + '</td><td class="num">' + Math.round(c.cafe) + ' g</td><td class="num">' + fmtMin(c.min) + '</td><td class="tiny">' + resp + '</td></tr>'; };
+    const nAv = d.modo === 'solo' ? 1 : Math.max(1, d.avaliadores.length), rev = d.modo === 'revezamento';
+    const tr = (rot, c, atual, resp) => '<tr' + (atual ? ' class="plano-atual"' : '') + '><td><b>' + rot + '</b>' + (atual ? ' <span class="tiny">(escolhido)</span>' : '') + '</td><td class="num">' + c.preparos + '</td><td class="num">' + c.xic + '</td><td class="num">' + Math.round(c.cafe) + ' g</td><td class="num">' + fmtMin(c.min) + '</td><td class="tiny">' + resp + '</td></tr>';
+    const linha = (rot, n, atual) => tr(rot, custoPlano(n, dose), atual, 'diferença perceptível? limiar ' + C.critical(n) + ' acertos · chance de detectar se metade distinguisse: ' + Math.round(C.power(n, 2 / 3) * 100) + ' %');
+    const obs = 'o que você percebe e prefere (observação)';
+    const linhasAB = nAv === 1 ? tr('Comparação cega A/B', custoAB(1, false, dose), !triAtivo, obs) :
+      tr('A/B · 1 ficha', custoAB(1, false, dose), !triAtivo, obs + '; ' + (rev ? 'um monta, o outro prova' : 'um avaliador prova')) +
+      tr('A/B · ' + nAv + ' fichas', custoAB(nAv, rev, dose), false, 'cada um descreve e escolhe' + (rev ? '; no revezamento quem montou precisa de um par novo, com relógio novo' : ' nas mesmas xícaras, um depois do outro no tablet'));
+    const med = medidasAB();
     const ns = planosCurtos(d); if (triAtivo && !ns.includes(nAtual)) ns.push(nAtual);
     return '<table class="t planos"><tr><th>Plano</th><th class="num">Preparos</th><th class="num">Xícaras</th><th class="num">Café</th><th class="num">Tempo</th><th>O que responde</th></tr>' +
-      linha('Comparação cega A/B', 0, !triAtivo) + ns.sort((a, b) => a - b).map(n => linha(n + ' tríades', n, triAtivo && n === nAtual)).join('') + '</table>' +
+      linhasAB + ns.sort((a, b) => a - b).map(n => linha(n + ' tríades', n, triAtivo && n === nAtual)).join('') + '</table>' +
+      (med.length ? '<p class="tiny"><b>Medido nas suas últimas comparações A/B:</b> ' + med.map(o => fmtMin(o.tb.total) + ' (' + o.tb.fichas + (o.tb.fichas === 1 ? ' ficha' : ' fichas') + ')').join(' · ') + '. Meta: ' + META_MIN + ' min.</p>' :
+        '<p class="tiny">Ainda sem medida da sua bancada: o app cronometra cada comparação (do plano travado à revelação) e mostra aqui.</p>') +
       '<p class="tiny">Estimativa, a validar na sua bancada: ' + TEMPO.dose + ' min para pesar e moer cada xícara; ' + TEMPO.janela + ' min da água até provar; ' + TEMPO.ficha + ' min para a ficha A/B; ' + TEMPO.triade +
-      ' min por tríade; ' + TEMPO.revelar + ' min para revelar; café com dose de ' + num1(dose) + ' g e +2 doses de purga (uma por torra). As tríades correm uma depois da outra, como o app conduz — por isso o triângulo não cabe em 30 min; ele pode ser dividido em vários dias (o app retoma). ' +
+      ' min por tríade; ' + TEMPO.revelar + ' min para revelar; café com dose de ' + String(dose).replace('.', ',') + ' g e +2 doses de purga (uma por torra). As tríades correm uma depois da outra, como o app conduz — por isso o triângulo não cabe em 30 min; ele pode ser dividido em vários dias (o app retoma). ' +
       '"Metade distinguisse" = acerto de 2 em 3, sob independência; repetições da mesma pessoa não são um painel. "Não detectado" não quer dizer "igual".</p>';
   }
   function vSetup() {
@@ -2042,7 +2081,9 @@ table.t td.num{text-align:right}
       render('<div class="ack"><div class="ring" aria-hidden="true">✓</div><h2>Ficha travada</h2><p class="muted">' + s.desc.fichas.filter(x => x.travada).length + ' ficha(s) nesta sessão. Ela não muda mais.</p></div>' +
         '<div class="card tight"><label class="f" for="fOutroAval" style="margin-top:0">Outra pessoa vai preencher uma ficha do mesmo par?</label>' +
         '<div class="addrow"><input type="text" id="fOutroAval" placeholder="Nome" list="avList"><datalist id="avList">' + s.avaliadores.map(a => '<option value="' + esc(a) + '">').join('') + '</datalist>' +
-        '<button class="btn ghost" id="btnOutraFicha" type="button" data-act="outra-ficha">Nova ficha</button></div><p class="tiny">Quem não viu o mapa prova nas mesmas posições; quem montou as xícaras recebe posições novas.</p></div>' +
+        '<button class="btn ghost" id="btnOutraFicha" type="button" data-act="outra-ficha">Nova ficha</button></div><p class="tiny">' + (s.modo === 'solo' ? 'No modo sozinho as xícaras já foram viradas: outra ficha pede um par novo, com relógio novo (cerca de ' + (2 * TEMPO.dose + TEMPO.janela + TEMPO.ficha) + ' min a mais).' :
+          'Quem não viu o mapa prova nestas xícaras (cerca de ' + TEMPO.ficha + ' min a mais). Quem montou as xícaras precisa de um par novo, com relógio novo (cerca de ' + (2 * TEMPO.dose + TEMPO.janela + TEMPO.ficha) + ' min a mais).') +
+        (revelada ? '' : (() => { const m = (Date.now() - s.criadaEm) / 60000; return m <= 120 ? ' <b>Até aqui: ' + fmtMin(m) + ' desde o plano travado</b> (meta ' + META_MIN + ' min).' : ''; })()) + '</p></div>' +
         '<div class="actions">' + (revelada ? '<button class="btn primary big" id="btnVerRelatorio" type="button" data-act="ver-relatorio">Ver relatório</button>' :
           '<button class="btn primary big" id="btnRevelar" type="button" data-act="revelar">Revelar resultados</button>') + '</div>', 'registrar');
     }
@@ -2133,7 +2174,7 @@ table.t td.num{text-align:right}
     const aberta = s.desc.fichas.find(f => !f.travada);
     if (aberta) { s.desc.fichas.splice(s.desc.fichas.indexOf(aberta), 1); }
     if (s.modulos.tri) { s.tri.revelado = true; s.tri.reveladoEm = Date.now(); s.tri.etapa = null; }
-    s.desc.revelada = true; s.desc.etapa = null;
+    s.desc.revelada = true; s.desc.etapa = null; if (!s.desc.reveladaEm) s.desc.reveladaEm = Date.now();
     if (s.status !== 'interrompida') s.status = 'revelada';
     touch(s); go('relatorio'); announce('Resultados revelados.');
   });
@@ -2228,6 +2269,7 @@ table.t td.num{text-align:right}
       '<li><b>Na xícara</b><span>' + esc(cupLine) + '</span></li>' +
       '<li><b>Para o objetivo</b><span>' + esc(prefLine) + '</span></li>' +
       '<li><b>Torra A × B</b><span id="rTorraLinha">' + esc(torraLine) + '</span></li>' +
+      (tempoBancada(s) ? '<li><b>Tempo de bancada</b><span id="rTempo">' + esc(fmtBancada(tempoBancada(s))) + '</span></li>' : '') +
       '<li><b>Diagnóstico</b><span>' + esc(diagLine + legLine) + '</span></li>' +
       '<li><b>Próxima batelada</b><span>' + nextLine + '</span></li></ul>';
 
@@ -2357,7 +2399,7 @@ table.t td.num{text-align:right}
       const res = !s.modulos.tri ? 'comparação A/B (observação)' : s.status === 'interrompida' ? 'incompleta' : !s.tri.revelado ? 'em andamento (oculto)' :
         st.complete ? resultadoCurto(st) : 'incompleta';
       return '<div class="hist-item"><div><b>' + esc(sessLabel(s)) + '</b> ' + (s.origem !== 'v3' ? '<span class="tag leg">legado v1</span>' : '') + (s.demo ? '<span class="tag leg">demonstração</span>' : '') +
-        '<div class="meta">' + fmtDate(s.criadaEm) + ' · ' + esc(res) + (s.status === 'revelada' || s.status === 'interrompida' ? ' · confiança: ' + esc(CONF_CURTA[AN.confianca(s).nivel]) : '') + (s.par.objetivo ? ' · ' + esc(s.par.objetivo) : s.par.pergunta ? ' · ' + esc(s.par.pergunta) : '') + '</div></div>' +
+        '<div class="meta">' + fmtDate(s.criadaEm) + ' · ' + esc(res) + (s.status === 'revelada' || s.status === 'interrompida' ? ' · confiança: ' + esc(CONF_CURTA[AN.confianca(s).nivel]) : '') + (tb => tb && tb.valida ? ' · ' + fmtMin(tb.total) + ' de bancada' : '')(tempoBancada(s)) + (s.par.objetivo ? ' · ' + esc(s.par.objetivo) : s.par.pergunta ? ' · ' + esc(s.par.pergunta) : '') + '</div></div>' +
         '<button class="btn ghost" type="button" data-act="abrir" data-id="' + esc(s.id) + '">Abrir</button></div>';
     };
     render('<h2>Histórico</h2><p class="muted">Cada sessão vale pela própria estatística. Comparar muitas sessões entre si aumenta a chance de achar diferença por acaso.</p>' +
@@ -2430,6 +2472,7 @@ table.t td.num{text-align:right}
     if (st) L.push('Triângulo (cego, ISO 4120' + (st.sim ? ', pergunta de SEMELHANÇA' : '') + '): ' + simPrefixo(st) + st.hits + '/' + st.valid + ' válidas · limiar ' + st.crit + ' · α 0,05 · p = ' + AN.fmtP(st.p) + ' · ' + st.distinctTasters + ' avaliador(es) ' + JSON.stringify(st.repsPer) + (st.exploratory.length ? ' · exploratório: ' + st.exploratory.join(', ') : '') + (st.complete ? '' : ' · INCOMPLETA') + (pdInfo(st) ? ' · pd: ' + pdInfo(st).curto : ''));
     L.push('Síntese: ' + D.sintese);
     L.push('Força do resultado: ' + a.confianca.tipo + ' · ' + a.confianca.titulo + ' — ' + a.confianca.porque);
+    if (tempoBancada(s)) L.push('Tempo de bancada (medido pelo app): ' + fmtBancada(tempoBancada(s)));
     ['A', 'B'].forEach(X => { const I = s.torra && s.torra[X] && s.torra[X].importado; if (!I) return;
       L.push('Torra ' + X + ' (' + I.arquivo + (I.cafe ? ', ' + I.cafe : '') + '): ' + ['fc', 'drop', 'total', 'dev', 'dtr', 'rorFc', 'perda'].filter(k => I.campos[k]).map(k => ({ fc: '1C', drop: 'DROP', total: 'total', dev: 'dev', dtr: 'DTR', rorFc: 'RoR 1C', perda: 'perda' })[k] + ' ' + valorAlog(k, I.campos[k])).join(' · ') +
         (trajetoria(I, 'gas') ? ' · gás ' + trajetoria(I, 'gas') : '') + (I.avisos.length ? ' · lacunas: ' + I.avisos.join('; ') : '')); });
@@ -2465,13 +2508,13 @@ table.t td.num{text-align:right}
       '# ' + s.par.A.ocr + ' × ' + s.par.B.ocr, '', '**Síntese:** ' + D.sintese, '', '**Confiança:** ' + CF.titulo + ' — ' + CF.porque, '', '**Decisão:** ' + D.decisao, '', '```', resumoText(s), '```'].join('\n');
   }
   function cadernoCsv() {
-    const rows = [['data', 'origem', 'demonstracao', 'A', 'B', 'objetivo', 'status', 'validas', 'acertos', 'limiar', 'p', 'resultado', 'fichas']];
+    const rows = [['data', 'origem', 'demonstracao', 'A', 'B', 'objetivo', 'status', 'validas', 'acertos', 'limiar', 'p', 'resultado', 'fichas', 'min_bancada']];
     ST.sessoes.forEach(s => {
       const rev = s.modulos.tri && (s.tri.revelado || s.status === 'interrompida');
       const st = rev ? C.triStats(s) : null;
       rows.push([fmtDate(s.criadaEm), s.origem, s.demo ? 'sim' : 'nao', s.par.A.ocr, s.par.B.ocr, s.par.objetivo || s.par.pergunta || '', s.status,
         st ? st.valid : '', st ? st.hits : '', st ? st.crit : '', st && st.p != null ? st.p.toFixed(4) : '', !s.modulos.tri ? 'comparação A/B (observação)' : !rev ? 'oculto (em andamento)' : st.complete ? resultadoCurto(st) : 'incompleta',
-        s.desc.revelada ? s.desc.fichas.filter(f => f.travada).length : '']);
+        s.desc.revelada ? s.desc.fichas.filter(f => f.travada).length : '', (tb => tb && tb.valida ? Math.round(tb.total) : '')(tempoBancada(s))]);
     });
     return '﻿' + rows.map(r => r.map(c => { c = String(c == null ? '' : c); return /[",;\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; }).join(',')).join('\n');
   }
@@ -2655,7 +2698,7 @@ table.t td.num{text-align:right}
         const nf = blankFicha(av, s.desc.alocacao.slice()); nf.cega = true; nf.montadaPor = prep || (s.modo === 'solo' ? 'embaralhada sem olhar' : null);
         s.desc.fichas.push(nf); s.desc.etapa = { fase: 'mapa', fichaIdx: s.desc.fichas.length - 1 }; touch(s); return vDesc(s); }
       case 'desc-voltar-mapa': s.desc.etapa.fase = 'mapa'; touch(s); return vDesc(s);
-      case 'desc-agua-inicio': if (s.desc.aguaEm) return; s.desc.aguaEm = Date.now(); touch(s);
+      case 'desc-agua-inicio': { if (s.desc.aguaEm) return; s.desc.aguaEm = Date.now(); const so = s.desc.sorteios; if (so && so.length && !so[so.length - 1].aguaEm) so[so.length - 1].aguaEm = s.desc.aguaEm; touch(s); }
         try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); } catch (e2) { /* sem som: fica o aviso visual */ }
         vDesc(s); announce('Relógio iniciado. Infusão em andamento.'); return;
       case 'desc-montado': s.desc.etapa.fase = s.modo === 'solo' ? 'livre' : 'entrega'; if (s.modo === 'solo') marcaInicioFicha(s); touch(s); return vDesc(s);

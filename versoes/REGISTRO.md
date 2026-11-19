@@ -4,6 +4,30 @@ Uma entrada por rodada, a mais recente no topo. A próxima rodada começa lendo 
 
 ---
 
+## 2026-11-19 · rodada 8 · v2.7 → v2.8 (`index.html`)
+
+**Origem → entrega.** `index.html` v2.7 (md5 b73ad388; arquivado como `versoes/index_v2-7_b73ad388.html`) → `index.html` v2.8 (md5 no commit). O pedido repetiu o da rodada 7 (importação .alog, caminho A/B, relatório), que já estava entregue. A rodada atacou o que ficou em aberto lá: a meta de 30 min sem medida e o custo da dupla. Commit local; **não enviado** ao GitHub.
+
+**Problema reproduzido.** (1) Os 30 min eram só estimativa (`TEMPO`). O app não media a bancada, e a sessão só A/B nem gravava a hora da revelação. Além disso, `desc.aguaEm` era apagada ao sortear um par novo. (2) A tabela de planos dizia "Comparação cega A/B · 25 min" também em dupla. Mas no revezamento a ficha do segundo avaliador pede um par novo e um relógio novo, o que dá ~47 min, sem aviso antes de começar nem na tela "Ficha travada".
+
+**Mudança aplicada.**
+- Tempo de bancada **medido**: `tempoBancada(s)` conta do plano travado (`criadaEm`) à revelação (`desc.reveladaEm`, novo, ou `tri.reveladoEm`), separando a parte até a água da parte da água à revelação (`desc.sorteios[].aguaEm`, novo, por par). Aparece no relatório (linha "Tempo de bancada", com a meta de 30 min: dentro ou X min acima), no resumo ROAST_HISTORY, no Histórico e no Caderno (coluna `min_bancada`). Sessão com mais de 2 h aparece como pausa longa e não conta como medida. Demonstração, sessões migradas e sessões antigas sem carimbos não mostram nada.
+- Tabela de planos: com 2+ avaliadores mostra "A/B · 1 ficha" (25 min) e "A/B · k fichas". No revezamento, k pares e ~47 min; com preparador dedicado, o mesmo par e ~37 min. Abaixo da tabela, "Medido nas suas últimas comparações A/B" (até 5), para calibrar a estimativa com a bancada real.
+- "Ficha travada": o custo da próxima ficha (mesmas xícaras ≈ +12 min; quem montou ou modo sozinho = par novo ≈ +22 min) e o tempo decorrido desde o plano travado.
+- Dose exibida com as casas reais (8,25 g, antes 8,3).
+
+**Evidência (navegador, tablet 768×1024).**
+- .alog reais OCR 349/350 importados. A anotação longa de `beans` do 349 não virou nome. Rascunho recuperado após recarregar. Arquivo com `exec(...)` recusado sem alterar A/B.
+- Tabela: solo 1 linha de 25 min. Revezamento Ana+Bruno: 1 ficha 25 min · 2 fichas 2 pares, 4 xícaras, 50 g, 47 min. Dedicado: 2 fichas, 1 par, 37 min.
+- A/B solo completa: carimbos gravados (`sorteios[0].aguaEm`, `desc.reveladaEm`). Com carimbos ajustados a 31 min e água aos 6, o relatório mostra "31 min do plano travado à revelação (até a água 6 min · da água à revelação 25 min) · 1 par, 1 ficha · meta 30 min: 1 min acima". Resumo, Histórico, Caderno e "Medido…" coerentes (31 e 46 min); pausa de 3 h 10 rotulada e excluída.
+- Dupla: "Ficha travada" com o custo da próxima ficha; modo sozinho com texto próprio. Backup → apagar → restaurar: carimbos e .alog preservados; sessão sem carimbos (formato v2.7) sem linha e sem erro. Biblioteca, treino, demonstração e exportações ok; console sem erro do app.
+
+**Limites.** As medidas reais começam a existir quando o app for usado na bancada. Os números desta rodada são carimbos ajustados no teste, não cronometragem do usuário. O início conta a partir de "Travar plano e começar": se o plano for travado antes de moer, ou depois, a medida desloca.
+
+**Próxima oportunidade.** Depois de 3 a 5 A/B reais, comparar "Medido" com `TEMPO` e ajustar a estimativa (ou usar a mediana medida na tabela). Se a dupla quiser duas fichas dentro de 30 min, avaliar a montagem cruzada: os dois pares montados ao mesmo tempo, cada um pelo outro, com um relógio só.
+
+---
+
 ## 2026-11-19 · rodada 7 · v2.6 → v2.7 (`index.html`)
 
 **Origem → entrega.** `index.html` v2.6 (md5 3bdd3036, igual ao publicado; arquivado como `versoes/index_v2-6_3bdd3036.html`) → `index.html` v2.7 (md5 no commit). Base: pedido do usuário e a proposta `docs/2026-11-19-importacao-alog-e-bancada.md` (outra sessão; mantida fora do commit). Commit local; **não enviado** ao GitHub.
