@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Triângulo OCR">
 <meta name="application-name" content="Triângulo OCR">
-<meta name="ocr-build" content="v2.8">
+<meta name="ocr-build" content="v2.9">
 <link rel="manifest" id="manifestLink">
 <link rel="icon" id="favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23161d1a'/%3E%3Cpath d='M32 15 L49 46 L15 46 Z' fill='none' stroke='%2334c38f' stroke-width='4' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" id="appleIcon" href="">
@@ -1156,6 +1156,49 @@ table.t td.num{text-align:right}
   }
   const fmtNum = v => String(Math.round(v * 10) / 10).replace('.', ',');
   const fmtDif = it => (it.d > 0 ? '+' : it.d < 0 ? '−' : '±') + fmtNum(Math.abs(it.d)) + ' ' + it.un;
+  /*
+   * Decisões de ENTRADA que diferem entre os .alog de A e B — carga (BT), peso verde, valores de gás e de ar —, separadas dos
+   * resultados (1C, DROP, DTR, RoR), que acompanham a mudança planejada. Os horários dos ajustes não contam: só os valores.
+   * Cada diferença diz se aparece em "O que mudou" (palavra-chave). Uma diferença não declarada é explicação alternativa
+   * para o que se percebeu na xícara: o relatório avisa e a próxima batelada a iguala ao controle. Nada é inventado: sem os
+   * dois lados registrados, não há comparação.
+   */
+  const DECL = { carga: /carga|charge|pr[eé]-?aquec|temperatura (inicial|de entrada)/i, peso: /peso|massa|\bkg\b|tamanho d[ao] (lote|carga)/i,
+    gas: /g[aá]s|mbar|queimador|chama|burner/i, ar: /\bar\b|airflow|fluxo de ar|damper|exaust/i };
+  function seqEv(I, grupo) {
+    const ev = (I.eventos || []).filter(e => e.grupo === grupo && (e.fase === 'antes da carga' || e.fase === 'durante a torra'));
+    const out = []; ev.forEach(e => { const v = grupo === 'gas' ? (e.valor != null ? fmtNum(e.valor) + ' ' + (e.unidade || '') : null) : (e.texto || '').replace(/\s+/g, ' ').trim();
+      if (v && out[out.length - 1] !== v) out.push(v); });
+    return out;
+  }
+  /* onde duas sequências de ajustes diferem: no fim, em passos de mesma posição ou na sequência inteira */
+  function difSeq(nome, a, b) {
+    const fa = a[a.length - 1], fb = b[b.length - 1];
+    if (a.length === b.length) { const pos = a.map((v, i) => v !== b[i] ? i : -1).filter(i => i >= 0);
+      if (pos.length <= 2) return pos.map(i => nome + (i === a.length - 1 ? ' no fim' : ' no ' + (i + 1) + 'º ajuste') + ': A ' + a[i] + ' · B ' + b[i]).join(' · '); }
+    return fa !== fb ? nome + ' no fim: A ' + fa + ' · B ' + fb : nome + ': passos diferentes (A ' + a.join('→') + ' · B ' + b.join('→') + ')';
+  }
+  function entradasDif(torra, mudancas) {
+    const IA = torra && torra.A && torra.A.importado, IB = torra && torra.B && torra.B.importado;
+    if (!IA || !IB) return [];
+    const decl = (mudancas || []).join('\n'), out = [];
+    /* manter: o texto para cada controle possível (A, ou B depois de uma adoção registrada) */
+    const push = (k, txt, mA, mB) => out.push({ k, txt, linha: txt + ' (lido nos .alog)', manter: { A: mA, B: mB || mA }, declarada: DECL[k].test(decl) });
+    const u = IA.unidade || IB.unidade || '';
+    const cA = valT(IA, 'carga'), cB = valT(IB, 'carga');
+    if (cA != null && cB != null && Math.abs(cB - cA) >= 3) push('carga', 'carga (BT): A ' + fmtNum(cA) + ' · B ' + fmtNum(cB) + ' ' + u, 'carga (BT) como no controle: ' + fmtNum(cA) + ' ' + u, 'carga (BT) como no controle: ' + fmtNum(cB) + ' ' + u);
+    const pA = IA.campos.pesoVerde, pB = IB.campos.pesoVerde;
+    if (pA && pB && pA.u === pB.u && Math.abs(pB.v - pA.v) >= 0.05) push('peso', 'peso verde: A ' + fmtNum(pA.v) + ' · B ' + fmtNum(pB.v) + ' ' + pA.u, 'peso verde como no controle: ' + fmtNum(pA.v) + ' ' + pA.u, 'peso verde como no controle: ' + fmtNum(pB.v) + ' ' + pA.u);
+    /* arquivo que só registrou a configuração inicial (ex.: OCR 363) não diz o que se fez durante a torra: gás e ar ficam sem comparação */
+    const OA = window.OCRALOG, registrou = !OA.gasSemMudanca(IA.eventos) && !OA.gasSemMudanca(IB.eventos);
+    const gA = seqEv(IA, 'gas'), gB = seqEv(IB, 'gas');
+    if (registrou && gA.length && gB.length && gA.join('|') !== gB.join('|')) {
+      push('gas', difSeq('gás', gA, gB), 'gás como no controle (mesmos passos do .alog dele)'); }
+    const aA = seqEv(IA, 'ar'), aB = seqEv(IB, 'ar');
+    if (registrou && aA.length && aB.length && aA.join('|') !== aB.join('|')) {
+      push('ar', difSeq('ar', aA, aB), 'ar como no controle (mesmos passos do .alog dele)'); }
+    return out;
+  }
   /* para uma hipótese na amostra L: os dados de torra acompanham ou não? (L − outra) */
   function torraParaHipotese(s, chave, L) {
     const D = difsTorra(s); if (!D) return null;
@@ -1302,6 +1345,10 @@ table.t td.num{text-align:right}
       else if (pt.A > pt.B && pt.A > pt.nenhuma) decisao = 'Observação de bancada a favor de ' + A + ': manter o controle. A mudança não trouxe vantagem para o objetivo nesta sessão.';
       else decisao = 'Sem preferência clara entre ' + A + ' e ' + B + ': manter o controle. Isso não mostra que são iguais; se a mudança importa, repetir a comparação em outro dia.';
     }
+    /* decisões de entrada que os .alog mostram diferentes e "O que mudou" não declara: explicação alternativa, nunca causa provada */
+    const nd = entradasDif(s.torra, mud).filter(x => !x.declarada);
+    add('nao-declarada', nd.length, 'Os .alog mostram decisões de torra diferentes que não estão em "O que mudou": ' + nd.map(x => x.txt).join(' · ') + '. O que se percebeu na xícara pode vir também daí.');
+    if (nd.length && decisao) decisao += ' Atenção: os .alog mostram também ' + nd.map(x => x.txt).join(' · ') + ', fora de "O que mudou" — o resultado vale para essas diferenças juntas, não só para a mudança declarada. Para isolar, igualar ao controle na próxima batelada.';
     const obj = (s.par && s.par.objetivo) || '';
     const filtro = /coad|filtr|v60|pour|kalita|chemex|hario|melitta/i.test(obj) && /cupping/i.test((s.preparo && s.preparo.metodo) || '');
     add('filtro', filtro, 'O objetivo é coado e a prova foi em cupping: validar em filtro numa sessão própria, com o preparo registrado.');
@@ -1311,7 +1358,7 @@ table.t td.num{text-align:right}
     const proximo = {
       controle: controleProx, variante: confirmarB ? B : '', n: nSugerido(st, nPlan, k), mod: proxAB ? 'desc' : null, adotavel: !!(sm && st.complete && sm.similar && !st.sig && !s.adocao),
       mudanca: confirmarB ? 'repetir ' + B + ' (confirmação)' : '',
-      manter: ['lote ' + (s.lote || '(informar)'), 'preparo: ' + (pr.metodo || '') + ', moagem ' + (pr.moagem || '') + ' (' + (pr.moedor || '') + '), ' + (pr.dose || '') + ' / ' + (pr.agua || '') + ', ' + (pr.temp || ''), 'demais decisões de torra iguais ao controle'],
+      manter: ['lote ' + (s.lote || '(informar)'), 'preparo: ' + (pr.metodo || '') + ', moagem ' + (pr.moagem || '') + ' (' + (pr.moedor || '') + '), ' + (pr.dose || '') + ' / ' + (pr.agua || '') + ', ' + (pr.temp || ''), ].concat(nd.map(x => x.manter[controleProx === B && B !== A ? 'B' : 'A']), ['demais decisões de torra iguais ao controle']),
       criterio: obj ? 'Na ficha cega: ' + obj + '. Preferência pelo objetivo registrada.' : 'Definir o objetivo sensorial antes da prova.',
       prova: (filtro ? 'Sessão em filtro, preparo registrado; depois ' : '') + (st && !proxAB ? 'triângulo cego n = ' + nSugerido(st, nPlan, k) + ' com o mesmo preparo + ficha descritiva e preferência.' :
         st && st.sig ? 'comparação cega A/B com o mesmo par e o mesmo preparo (2 xícaras), para registrar descrição e preferência; o triângulo já detectou a diferença.' :
@@ -1376,7 +1423,7 @@ table.t td.num{text-align:right}
       (ressalvas.length ? ' Ressalvas: ' + ressalvas.join(', ') + '.' : '') + painel);
   }
 
-  const api = { SINAIS, FASES, HIP, HISTORICO, NIVEIS, profile, prefTally, signals, hypotheses, decide, confianca, difsTorra, fmtDif, fmtP };
+  const api = { SINAIS, FASES, HIP, HISTORICO, NIVEIS, profile, prefTally, signals, hypotheses, decide, confianca, difsTorra, fmtDif, fmtP, entradasDif };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.OCRAN = api;
 })(this);
 
@@ -1387,7 +1434,7 @@ table.t td.num{text-align:right}
 (function () {
   'use strict';
   const C = window.OCR, AN = window.OCRAN, LX = window.OCRLEX, ALOG = window.OCRALOG;
-  const VERSAO = 'v2.8';
+  const VERSAO = 'v2.9';
   const UI_KEY = 'triangulo_ocr_v3_ui';
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
@@ -1726,6 +1773,14 @@ table.t td.num{text-align:right}
     if (!d.lote.trim() && cafe) { const o = d.torra[p.L === 'A' ? 'B' : 'A'].cafe; if (!o || o === cafe) d.lote = cafe; }
     closeModal(); vSetup(); toast('Dados de ' + p.L + ' aplicados');
   }
+  /* na configuração: decisões de entrada que diferem nos .alog e ainda não estão em "O que mudou" */
+  function avisoEntradas(d) {
+    const nd = AN.entradasDif(d.torra, String(d.mudancas || '').split('\n').map(x => x.trim()).filter(Boolean)).filter(x => !x.declarada);
+    if (!nd.length) return '';
+    return '<div class="note warn" id="alogEntradas"><b>Os .alog mostram ' + (nd.length === 1 ? 'outra decisão de torra diferente' : 'outras decisões de torra diferentes') + ':</b> ' + nd.map(x => esc(x.txt)).join(' · ') +
+      '. Se fez parte do plano, acrescente em "O que mudou"; se não, a xícara pode refletir também essa diferença.' +
+      '<div class="actions"><button class="btn ghost" type="button" id="btnAlogMud" data-act="alog-mudancas">Acrescentar a "O que mudou"</button></div></div>';
+  }
   function linhaImport(alvo, torra) {
     return '<div class="alog-row">' + ['A', 'B'].map(L => { const im = torra[L] && torra[L].importado;
       return '<div class="alog-cell"><button class="btn ghost" type="button" data-act="alog-escolher" data-l="' + L + '" data-alvo="' + alvo + '">' + (im ? 'Trocar' : 'Importar') + ' .alog de ' + L + '</button>' +
@@ -1829,7 +1884,7 @@ table.t td.num{text-align:right}
       '<div><label class="f" for="fB">Variante (B) · código OCR</label><input type="text" id="fB" data-bind="draft.B" value="' + esc(d.B) + '" placeholder="OCR_370" autocomplete="off"></div></div>' +
       linhaImport('draft', d.torra) +
       '<label class="f" for="fObjetivo">Objetivo da comparação</label><input type="text" id="fObjetivo" data-bind="draft.objetivo" value="' + esc(d.objetivo) + '" placeholder="Melhor finalização para coado, com menos secura e sem perder doçura">' +
-      '<label class="f" for="fMudancas">O que mudou na torra entre A e B <span class="tiny">(uma por linha)</span></label><textarea id="fMudancas" data-bind="draft.mudancas" placeholder="gás depois do 1C">' + esc(d.mudancas) + '</textarea>' +
+      '<label class="f" for="fMudancas">O que mudou na torra entre A e B <span class="tiny">(uma por linha)</span></label><textarea id="fMudancas" data-bind="draft.mudancas" placeholder="gás depois do 1C">' + esc(d.mudancas) + '</textarea>' + avisoEntradas(d) +
       '<label class="f" for="fLote">Lote do café verde</label><input type="text" id="fLote" data-bind="draft.lote" value="' + esc(d.lote) + '" placeholder="Arara P17 · Fazenda Jangada">' +
       '<label class="f" for="fAval">Avaliadores</label><div class="addrow"><input type="text" id="fAval" placeholder="Nome" autocomplete="off"><button class="btn ghost" id="btnAddAval" type="button" data-act="add-aval">Adicionar</button></div><div class="chips">' + avs + '</div>' +
       '<label class="f">Quem prepara as xícaras</label>' + seg('modo', d.modo, [['dedicado', 'Preparador dedicado'], ['revezamento', 'Revezamento'], ['solo', 'Sozinho (exploratório)']]) +
@@ -2747,6 +2802,12 @@ table.t td.num{text-align:right}
       case 'restaurar': if (!READONLY) $('#fileRestaurar').click(); return;
       case 'alog-escolher': { const inp = $('[data-alogfile="' + el.dataset.l + '"][data-alvo="' + el.dataset.alvo + '"]'); if (inp) inp.click(); return; }
       case 'alog-aplicar': return aplicarAlog();
+      case 'alog-mudancas': { const d = UI.draft; if (!d) return;
+        const linhas = String(d.mudancas || '').split('\n').map(x => x.trim()).filter(Boolean);
+        AN.entradasDif(d.torra, linhas).filter(x => !x.declarada).forEach(x => linhas.push(x.linha));
+        d.mudancas = linhas.join('\n'); saveUI(); vSetup();
+        const m = $('#fMudancas'); if (m) { m.focus(); m.scrollIntoView({ block: 'center' }); } /* volta ao campo, sem pular para o topo */
+        announce('Diferenças dos .alog acrescentadas em O que mudou.'); return; }
       case 'alog-pista': { const p = UI.alogPend && UI.alogPend.r.id.pistas[Number(el.dataset.i)]; if (p && p.sugestao && $('#alogCafe')) { $('#alogCafe').value = p.sugestao; $('#alogCafe').focus(); } return; }
       case 'restaurar-ok': return aplicarRestauro();
       case 'demo': { let d = ST.sessoes.find(x => x.demo); if (!d) { d = makeDemo(); ST.sessoes.push(d); } UI.cur = d.id; return go('relatorio'); }

@@ -4,6 +4,31 @@ Uma entrada por rodada, a mais recente no topo. A próxima rodada começa lendo 
 
 ---
 
+## 2026-11-19 · rodada 9 · v2.8 → v2.9 (`index.html`)
+
+**Origem → entrega.** `index.html` v2.8 (md5 df2bcaa2; arquivado como `versoes/index_v2-8_df2bcaa2.html`) → `index.html` v2.9 (md5 no commit). Commit local; **não enviado** ao GitHub.
+
+**Oportunidades da rodada 8.** Comparar o tempo medido com a estimativa: segue aberta, porque depende de sessões reais da bancada, que não estão neste navegador. A montagem cruzada na dupla segue como ideia. Nesta rodada, a retomada (mapa, entrega, impressão livre digitada sem sair do campo) foi conferida e está sólida: sem mapa ao recarregar, sem ficha duplicada, texto preservado.
+
+**Problema reproduzido (decisão).** Com os .alog importados, o relatório atribuía o resultado à mudança declarada mesmo quando os arquivos mostravam outra decisão de torra diferente. Cenário: A = OCR 349, B = OCR 350, "O que mudou" = "DROP mais tarde", preferência por B.
+- v2.8: "Observação a favor de OCR 350… torrar OCR 350 de novo". "Como cheguei" registrava "não aplica — 1 decisão de torra", e "Manter" dizia "demais decisões iguais ao controle". Nada disso mencionava a carga (BT) 221 → 210 °C, visível só na linha "Torra A × B".
+- Varredura dos 28 pares consecutivos reais (340→368): a carga difere ≥ 3 °C em 20 deles (até 17,5 °C). Gás e ar diferem em vários.
+
+**Mudança aplicada.**
+- `OCRAN.entradasDif(torra, mudanças)` separa as decisões de **entrada** que diferem (carga BT ≥ 3 °C, peso verde, valores de gás, passos de ar) dos resultados (1C, DROP, DTR, RoR). Os horários dos ajustes não contam, só os valores. Mostra só o passo diferente quando a sequência tem o mesmo tamanho. Se um dos arquivos só registrou a configuração inicial (`gasSemMudanca`, ex.: OCR 363), gás e ar não são comparados. Cada diferença sabe se aparece em "O que mudou" (palavras-chave `DECL`).
+- Configuração: aviso "Os .alog mostram outra decisão de torra diferente…" com o botão "Acrescentar a 'O que mudou'" (52 px; o foco volta ao campo).
+- `decide`: passo `nao-declarada`; a decisão ganha "Atenção: os .alog mostram também … fora de 'O que mudou' — o resultado vale para essas diferenças juntas… igualar ao controle". "Manter" lista os valores do **controle vigente** (A, ou B depois de adoção registrada). Declarar as diferenças aciona a regra já existente de isolar. O texto chega ao resumo ROAST_HISTORY, à nota .md e ao JSON.
+
+**Evidência (tablet 768×1024, .alog reais).**
+- Mesmo cenário, depois: aviso antes de travar; decisão com a frase de atenção; "Manter: carga (BT) como no controle: 221 °C"; passo `nao-declarada` "aplica". Nenhum dado de torra nas 6 telas de prova checadas.
+- Ramo declarado (344 × 345, "corte de gás antes do DROP"): o botão acrescentou carga e ar e não repetiu o gás; o aviso sumiu; rascunho recuperado após recarregar; decisão "Isolar uma mudança…".
+- Desfechos: diferença sem preferência e semelhança demonstrada com a frase. Adoção registrada mantém o controle B e "Manter" passa a usar os valores de B. Sem .alog, a decisão fica idêntica à da v2.8. 362 × 363: nada acusado.
+- Exportações, Caderno, biblioteca, treino e demonstração ok; console sem erro novo.
+
+**Próxima oportunidade.** A carga varia ≥ 3 °C em 20 de 28 pares reais: a maior parte dos A/B vai cair no aviso. Avaliar se o relatório deve mostrar a dispersão da carga entre as sessões (pista de que o pré-aquecimento não é repetível), e se 3 °C é o limite certo para o Atilla, com o operador. Seguem abertos: calibrar `TEMPO` com medidas reais e a montagem cruzada na dupla.
+
+---
+
 ## 2026-11-19 · rodada 8 · v2.7 → v2.8 (`index.html`)
 
 **Origem → entrega.** `index.html` v2.7 (md5 b73ad388; arquivado como `versoes/index_v2-7_b73ad388.html`) → `index.html` v2.8 (md5 no commit). O pedido repetiu o da rodada 7 (importação .alog, caminho A/B, relatório), que já estava entregue. A rodada atacou o que ficou em aberto lá: a meta de 30 min sem medida e o custo da dupla. Commit local; **não enviado** ao GitHub.
