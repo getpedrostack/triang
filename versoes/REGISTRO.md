@@ -4,6 +4,37 @@ Uma entrada por rodada, a mais recente no topo. A próxima rodada começa lendo 
 
 ---
 
+## 2026-11-19 · rodada 11 · v2.10 → v2.11 (`index.html`)
+
+**Origem → entrega.** `index.html` v2.10 (md5 9c87f8fd, igual ao publicado; arquivado como `versoes/index_v2-10_9c87f8fd.html`) → `index.html` v2.11 (md5 no commit). Commit local; **não enviado**.
+
+**Oportunidade da rodada 10** (2ª ficha mais fria na dupla): segue registrada, não foi a prioridade. Ao inspecionar as telas por captura, apareceu um problema maior: o app é usado no **celular** (link publicado), mas todas as medidas eram em 768×1024.
+
+**Problema reproduzido (v2.10, 375×812).**
+- Ficha: o botão de avançar ficava em 1.635 / 1.703 / 1.098 / 1.293 px nos passos 1–4, numa tela de 812. Cada eixo ocupava 415 px (Esquerda e Direita empilhadas, cada uma com cabeçalho, régua e dois botões de 52 px).
+- Configuração com rolagem lateral: a página media 451 px, porque a tabela de planos (417 px) estourava o cartão (343).
+- Régua "não avaliada" parada no 5: tocar sobre o marcador sem arrastar não dispara `input`, e o valor não era gravado.
+
+**Mudança aplicada.**
+- Posição da ficha em **uma linha**: [nome e valor | régua 0–10 | ✕ de 52 px]. **0 = "não percebido"** (antes, botão), **✕ = "não avaliado"** (antes, botão). Os estados gravados não mudam (`valor`/`nao_percebido`/`nao_avaliado`), então perfil, relatório e exportações seguem iguais.
+- `pointerup` numa régua `.unset` grava o valor tocado.
+- No celular (≤ 620 px): âncoras curtas (`ancoras()`, a descrição fica só no tablet), relógio e topo compactos.
+- Botão de avançar da ficha e "Travar ficha e escolha" **fixos no rodapé** (`.acts-fixas`), com o contador "N posições sem marcar" (`faltaTxt`), que informa sem bloquear. "Voltar" fica no fluxo.
+- Tabela de planos empilhada no celular (rótulos via `data-label`).
+
+**Evidência.**
+- 375×812: ação dos passos 1–4 a 742–802 px, visível em todos (antes 1.635/1.703/1.098/1.293). Configuração com largura 375 (antes 451).
+- 375×667: passos 1–4 e escolha visíveis (657 px); no fim da rolagem o botão não cobre a última régua; triângulo (rodada, montagem com relógio, prova, confirmação) com ação visível.
+- 768×1024: passos 1–2 a 713 px (a ficha também ficou mais curta), régua 205×52, ✕ 52; tabela de planos segue em colunas.
+- Estados: 0 → `nao_percebido`, 6 → `valor 6`, ✕ → `nao_avaliado` (✕ desabilitado, "–"). Toque real no centro de uma régua parada no 5 gravou `valor 5` (sem o listener, o valor não muda e o `input` não dispara). O "antes" desse toque na v2.10 não foi reproduzido com clique real: a conversão de coordenadas do emulador não acertou o marcador.
+- Biblioteca, treino, Histórico, demonstração, CSV/JSON/MD/Caderno ok. Console: só o bloqueio de vibração do navegador numa aba sem toque, que já acontecia antes.
+
+**Limites.** Medido no emulador do navegador, não num celular real: barra de endereço, teclado e rolagem por toque precisam de conferência no seu aparelho. Arrastar até 0 grava "não percebido"; um arraste acidental até o começo grava isso.
+
+**Próxima oportunidade.** Conferir no celular real a ficha e o rodapé fixo, principalmente com o teclado aberto na impressão livre e nos descritores (passo 3). Segue aberta a 2ª ficha mais fria na dupla.
+
+---
+
 ## 2026-11-19 · rodada 10 · v2.9 → v2.10 (`index.html`)
 
 **Origem → entrega.** `index.html` v2.9 (md5 e0696be8, igual ao publicado; arquivado como `versoes/index_v2-9_e0696be8.html`) → `index.html` v2.10 (md5 no commit). O pedido repetiu o da rodada 7. Esta rodada atacou o item ainda não atendido: "fluxo adequado para uma pessoa ou duas" perto dos 30 min. Commit local; **não enviado**.

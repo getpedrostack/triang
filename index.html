@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Triângulo OCR">
 <meta name="application-name" content="Triângulo OCR">
-<meta name="ocr-build" content="v2.10">
+<meta name="ocr-build" content="v2.11">
 <link rel="manifest" id="manifestLink">
 <link rel="icon" id="favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23161d1a'/%3E%3Cpath d='M32 15 L49 46 L15 46 Z' fill='none' stroke='%2334c38f' stroke-width='4' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" id="appleIcon" href="">
@@ -86,6 +86,10 @@ p{margin:0 0 12px}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .row > .btn{flex:1 1 auto}
 .actions{display:flex;flex-direction:column;gap:10px;margin-top:20px}
+.acts-fixas{position:sticky;bottom:0;z-index:5;background:var(--bg);padding:10px 0 max(10px,env(safe-area-inset-bottom));margin-bottom:-10px}
+#btnFichaProx{flex-direction:column;gap:0;line-height:1.2}
+.btn .falta{display:block;font-size:14px;font-weight:550;opacity:.85}
+.btn .falta:empty{display:none}
 .actions-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
 .sess-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px;padding-top:14px;border-top:1px dashed var(--line-2)}
 .sess-actions .btn{min-height:52px;font-size:14px;padding:0 14px;font-weight:560}
@@ -189,21 +193,19 @@ details.x > .in{padding:0 16px 16px}
 /* ficha */
 .posbar{display:grid;grid-template-columns:1fr 1fr;gap:10px;position:sticky;top:64px;z-index:5;background:var(--bg);padding:8px 0}
 .posbar div{text-align:center;font-weight:700;background:var(--surface-2);border-radius:10px;padding:8px}
-.axis{border-top:1px solid var(--line);padding:10px 0}
+.axis{border-top:1px solid var(--line);padding:8px 0}
 .axis-h{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
 .axis-h b{font-size:17px}
 .anchors{font-size:13px;color:var(--muted)}
-.axis-pos{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}
-.ap{background:var(--surface-2);border-radius:12px;padding:8px 12px}
-.ap .val{font-size:22px;font-weight:720;min-height:30px}
-.ap-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
-.ap-h .val{min-height:0;line-height:1.2}
-.ap .val.mute{font-size:15px;color:var(--faint);font-weight:550}
+.axis-pos{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin-top:6px}
+.ap{background:var(--surface-2);border-radius:12px;padding:0 4px 0 12px;display:grid;grid-template-columns:62px 1fr 52px;align-items:center;gap:8px;min-height:56px}
+.ap-n{display:flex;flex-direction:column;line-height:1.15}
+.ap .val{font-size:22px;font-weight:720}
+.ap .val.mute{color:var(--faint);font-weight:550}
 .ap input[type=range].unset{opacity:.35}
 .ap input[type=range]{width:100%;height:52px;accent-color:var(--em);background:transparent;border:0;padding:0;min-height:52px}
-.ap .st{display:flex;gap:6px;margin-top:2px}
-.ap .st button{flex:1;min-height:52px;font-size:13px;border-radius:9px;border:1px solid var(--line-2);background:transparent;color:var(--ink-2);cursor:pointer;font-family:inherit;padding:2px 6px}
-.ap .st button[aria-pressed=true]{border-color:var(--em);background:var(--em-soft);color:var(--ink)}
+.ap .clr{width:52px;height:52px;min-height:52px;border-radius:10px;border:1px solid var(--line-2);background:transparent;color:var(--ink-2);font-size:18px;cursor:pointer;font-family:inherit;padding:0}
+.ap .clr:disabled{opacity:.3;cursor:default}
 .sig{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .sig button{min-height:52px;border-radius:22px;border:1px solid var(--line-2);background:var(--surface-2);color:var(--ink-2);font:inherit;font-size:14px;padding:0 14px;cursor:pointer}
 .sig button[aria-pressed=true]{border-color:var(--em);background:var(--em-soft);color:var(--ink)}
@@ -246,6 +248,16 @@ table.planos{font-size:14px;margin-top:10px}
 table.planos th,table.planos td{padding:6px 5px}
 tr.plano-atual td{background:var(--em-soft)}
 .tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+@media (max-width:620px){
+  table.planos,table.planos tbody,table.planos tr,table.planos td{display:block;width:auto}
+  table.planos tr:first-child{display:none}
+  table.planos tr{border-bottom:1px solid var(--line);padding:8px 6px}
+  table.planos td{border:0;padding:2px 0;text-align:left}
+  table.planos td.num{display:inline-block;margin-right:14px}
+  table.planos td.num::before{content:attr(data-label) ' ';color:var(--muted)}
+  table.planos tr.plano-atual{background:var(--em-soft);border-radius:10px}
+  table.planos tr.plano-atual td{background:transparent}
+}
 table.torra-ab{font-size:14px;min-width:560px}
 @media (max-width:620px){.alog-row{grid-template-columns:1fr}}
 .conf.sustentada{border-left-color:var(--em)} .conf.indicativa,.conf.limitada{border-left-color:var(--warn)} .conf.sem-conclusao,.conf.observacao{border-left-color:var(--danger)}
@@ -289,7 +301,21 @@ table.t td.num{text-align:right}
 
 @media (max-width:620px){
   .grid2,.who,.actions-2{grid-template-columns:1fr}
-  .axis-pos{grid-template-columns:1fr}
+  .axis-pos{grid-template-columns:1fr;gap:6px}
+  /* ficha no celular: a régua de cada posição numa linha, âncoras curtas, relógio compacto (o botão de avançar sem rolar) */
+  .anc-d{display:none}
+  .axis{padding:6px 0}
+  .axis-h{flex-wrap:nowrap}
+  .ap{min-height:52px}
+  .ap-n{line-height:1.05}
+  .ap .val{font-size:20px}
+  .clock{padding:6px 12px;margin:8px 0;gap:4px 12px}
+  .clock-t{font-size:26px}
+  .clock-l{font-size:14px}
+  .progress{margin:10px 0 2px}
+  .escala{margin:6px 0}
+  .tb{padding-top:max(6px,env(safe-area-inset-top));padding-bottom:6px}
+  .stages{padding-bottom:6px}
   .quick li{grid-template-columns:1fr;gap:2px}
   .prefs{grid-template-columns:1fr}
   .prefs button{min-height:56px}
@@ -1434,7 +1460,7 @@ table.t td.num{text-align:right}
 (function () {
   'use strict';
   const C = window.OCR, AN = window.OCRAN, LX = window.OCRLEX, ALOG = window.OCRALOG;
-  const VERSAO = 'v2.10';
+  const VERSAO = 'v2.11';
   const UI_KEY = 'triangulo_ocr_v3_ui';
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
@@ -1853,7 +1879,7 @@ table.t td.num{text-align:right}
   function tabelaPlanos(d, nAtual) {
     const dose = doseG(d), triAtivo = d.mod !== 'desc';
     const nAv = Math.max(1, d.modo === 'solo' && d.mod !== 'desc' ? 1 : d.avaliadores.length), rev = d.modo === 'revezamento';
-    const tr = (rot, c, atual, resp) => '<tr' + (atual ? ' class="plano-atual"' : '') + '><td><b>' + rot + '</b>' + (atual ? ' <span class="tiny">(escolhido)</span>' : '') + '</td><td class="num">' + c.preparos + '</td><td class="num">' + c.xic + '</td><td class="num">' + Math.round(c.cafe) + ' g</td><td class="num">' + fmtMin(c.min) + '</td><td class="tiny">' + resp + '</td></tr>';
+    const tr = (rot, c, atual, resp) => '<tr' + (atual ? ' class="plano-atual"' : '') + '><td><b>' + rot + '</b>' + (atual ? ' <span class="tiny">(escolhido)</span>' : '') + '</td><td class="num" data-label="preparos">' + c.preparos + '</td><td class="num" data-label="xícaras">' + c.xic + '</td><td class="num" data-label="café">' + Math.round(c.cafe) + ' g</td><td class="num" data-label="tempo">' + fmtMin(c.min) + '</td><td class="tiny">' + resp + '</td></tr>';
     const linha = (rot, n, atual) => tr(rot, custoPlano(n, dose), atual, 'diferença perceptível? limiar ' + C.critical(n) + ' acertos · chance de detectar se metade distinguisse: ' + Math.round(C.power(n, 2 / 3) * 100) + ' %');
     const obs = 'o que você percebe e prefere (observação)';
     const linhasAB = nAv === 1 ? tr('Comparação cega A/B', custoAB(1, false, dose), !triAtivo, obs) :
@@ -2084,6 +2110,8 @@ table.t td.num{text-align:right}
     complexidade: 'quantidade de notas distintas · 1 uma nota só · 10 muitas camadas',
     limpeza: 'clareza, sem sabores que embaçam · 1 muito turva · 10 totalmente límpida'
   };
+  /* descrição do eixo + âncoras; no celular só as âncoras ficam visíveis (CSS .anc-d) */
+  function ancoras(k) { const p = ANCHORS[k].split(' · '); return '<span class="anc-d">' + p[0] + ' · </span>' + p.slice(1).join(' · '); }
   function curFicha(s) { const e = s.desc.etapa; return e && e.fichaIdx != null ? s.desc.fichas[e.fichaIdx] : null; }
   function posLabels(s) { return s.modo === 'solo' ? ['Esquerda', 'Direita'] : ['Posição 1', 'Posição 2']; }
   function vDesc(s) {
@@ -2140,8 +2168,8 @@ table.t td.num{text-align:right}
         '<div class="prefs">' + [['0', pl[0]], ['1', pl[1]], ['nenhuma', 'Sem preferência']].map(([v, l]) => '<button type="button" data-pref="' + v + '" aria-pressed="' + (ch === v) + '">' + l + '</button>').join('') + '</div>' +
         '<label class="f" for="prefJust">Por quê? <span class="tiny">(opcional)</span></label><textarea id="prefJust" data-bind="ficha.preferencia.justificativa">' + esc(f.preferencia.justificativa) + '</textarea>' +
         '<div id="semPrefBox"></div>' +
-        '<div class="actions"><button class="btn primary big" id="btnTravarFicha" type="button" data-act="travar-ficha">Travar ficha e escolha</button>' +
-        '<button class="btn quiet" type="button" data-act="voltar-ficha">Voltar à ficha</button></div>', 'registrar');
+        '<div class="actions acts-fixas"><button class="btn primary big" id="btnTravarFicha" type="button" data-act="travar-ficha">Travar ficha e escolha</button></div>' +
+        '<div class="actions"><button class="btn quiet" type="button" data-act="voltar-ficha">Voltar à ficha</button></div>', 'registrar');
     } else if (e.fase === 'travada') {
       const revelada = s.status === 'revelada' || s.status === 'interrompida';
       render('<div class="ack"><div class="ring" aria-hidden="true">✓</div><h2>Ficha travada</h2><p class="muted">' + s.desc.fichas.filter(x => x.travada).length + ' ficha(s) nesta sessão. Ela não muda mais.</p></div>' +
@@ -2173,14 +2201,14 @@ table.t td.num{text-align:right}
   function passoFicha(s) { const p = (s.desc.etapa && s.desc.etapa.passo) | 0; return Math.max(0, Math.min(PASSOS_FICHA.length - 1, p)); }
   function vFichaHtml(s, f) {
     const pl = posLabels(s), passo = passoFicha(s), P = PASSOS_FICHA[passo];
-    const axes = (P.eixos || []).map(ax => '<div class="axis"><div class="axis-h"><b>' + ax.name + '</b><span class="anchors">' + ANCHORS[ax.k] + '</span></div><div class="axis-pos">' +
+    const axes = (P.eixos || []).map(ax => '<div class="axis"><div class="axis-h"><b>' + ax.name + '</b><span class="anchors">' + ancoras(ax.k) + '</span></div><div class="axis-pos">' +
       [0, 1].map(p => {
         const c = f.eixos[p][ax.k];
-        const val = c.estado === 'valor' ? '<div class="val" id="val_' + p + '_' + ax.k + '">' + c.v + '</div>' : '<div class="val mute" id="val_' + p + '_' + ax.k + '">' + (c.estado === 'nao_percebido' ? 'não percebido' : 'não avaliado') + '</div>';
-        return '<div class="ap"><div class="ap-h"><span class="tiny">' + pl[p] + '</span>' + val + '</div>' +
-          '<input type="range" min="1" max="10" step="1"' + (c.estado === 'valor' ? '' : ' class="unset"') + ' id="ax_' + p + '_' + ax.k + '" data-axis="' + ax.k + '" data-pos="' + p + '" value="' + (c.estado === 'valor' ? c.v : 5) + '" aria-label="' + ax.name + ', ' + pl[p] + ', intensidade de 1 a 10">' +
-          '<div class="st"><button type="button" data-eixo="' + ax.k + '" data-pos="' + p + '" data-estado="nao_percebido" aria-pressed="' + (c.estado === 'nao_percebido') + '">Não percebido</button>' +
-          '<button type="button" data-eixo="' + ax.k + '" data-pos="' + p + '" data-estado="nao_avaliado" aria-pressed="' + (c.estado === 'nao_avaliado') + '">Não avaliado</button></div></div>';
+        /* uma linha por posição: 0 na régua = "não percebido"; ✕ volta para "não avaliado". Os estados gravados não mudam. */
+        const na = c.estado === 'nao_avaliado', v = c.estado === 'valor' ? c.v : c.estado === 'nao_percebido' ? 0 : 5;
+        return '<div class="ap"><div class="ap-n"><span class="tiny">' + pl[p] + '</span><span class="val' + (na ? ' mute' : '') + '" id="val_' + p + '_' + ax.k + '">' + (na ? '–' : v) + '</span></div>' +
+          '<input type="range" min="0" max="10" step="1"' + (na ? ' class="unset"' : '') + ' id="ax_' + p + '_' + ax.k + '" data-axis="' + ax.k + '" data-pos="' + p + '" value="' + v + '" aria-label="' + ax.name + ', ' + pl[p] + ', intensidade de 0 (não percebido) a 10" aria-valuetext="' + (na ? 'não avaliado' : v === 0 ? 'não percebido' : v) + '">' +
+          '<button type="button" class="clr" data-eixo="' + ax.k + '" data-pos="' + p + '" data-estado="nao_avaliado" aria-label="Limpar ' + ax.name + ', ' + pl[p] + ' (não avaliado)"' + (na ? ' disabled' : '') + '>✕</button></div>';
       }).join('') + '</div></div>').join('');
     const descr = [0, 1].map(p => '<div><div class="tiny">' + pl[p] + '</div><div class="descs">' + (f.descritores.filter(x => x.pos === p).map((x, i) => '<span class="chip">' + esc(x.termo) + (x.intensidade ? ' · ' + esc(x.intensidade) : '') + (x.fase ? ' · ' + esc(x.fase) : '') + '<button type="button" aria-label="Remover ' + esc(x.termo) + '" data-act="rm-desc" data-i="' + f.descritores.indexOf(x) + '">×</button></span>').join('') || '<span class="tiny">nenhum ainda</span>') + '</div></div>').join('');
     const sinais = [0, 1].map(p => {
@@ -2193,7 +2221,7 @@ table.t td.num{text-align:right}
         '<div class="addrow" style="margin-top:8px"><input type="text" placeholder="outro sinal" data-sinaloutro="' + p + '" aria-label="Outro sinal em ' + pl[p] + '"><button class="btn ghost" type="button" data-act="sinal-outro" data-pos="' + p + '">Anotar</button></div></div>';
     }).join('');
     let corpo = '';
-    if (P.eixos) corpo = '<p class="tiny">Escala OCR de intensidade (não de qualidade): mais não é melhor.</p>' + axes;
+    if (P.eixos) corpo = '<p class="tiny escala">Intensidade, não qualidade: mais não é melhor. 0 = não percebido · ✕ = não avaliado.</p>' + axes;
     else if (passo === 2) corpo = '<p class="small muted">Fragrância, aroma, sabor, finalização e boca. Busque no léxico ou escreva o seu termo.</p>' +
       '<div class="grid2">' + descr + '</div>' +
       '<div class="row" style="margin-top:10px"><button class="btn ghost" id="btnLexAbrir" type="button" data-act="lex-abrir">Buscar no léxico</button></div>' +
@@ -2203,9 +2231,15 @@ table.t td.num{text-align:right}
     const ultimo = passo === PASSOS_FICHA.length - 1;
     return '<div class="progress"><span>Ficha · passo <b>' + (passo + 1) + '</b> de ' + PASSOS_FICHA.length + '</span><span>' + esc(f.avaliador) + '</span></div>' +
       '<h2>' + P.nome + '</h2>' + descClock(s) + corpo +
-      '<div class="actions">' + (ultimo ? '<button class="btn primary big" id="btnFichaOk" type="button" data-act="ficha-ok">Seguir para a escolha</button>' :
-        '<button class="btn primary big" id="btnFichaProx" type="button" data-act="ficha-passo" data-dir="1">Próximo: ' + PASSOS_FICHA[passo + 1].nome.toLowerCase() + '</button>') +
-      (passo > 0 ? '<button class="btn quiet" id="btnFichaVoltar" type="button" data-act="ficha-passo" data-dir="-1">Voltar ao passo anterior</button>' : '') + '</div>';
+      '<div class="actions acts-fixas">' + (ultimo ? '<button class="btn primary big" id="btnFichaOk" type="button" data-act="ficha-ok">Seguir para a escolha</button>' :
+        '<button class="btn primary big" id="btnFichaProx" type="button" data-act="ficha-passo" data-dir="1">Próximo: ' + PASSOS_FICHA[passo + 1].nome.toLowerCase() + '<span class="falta" id="fichaFalta">' + faltaTxt(f, P) + '</span></button>') + '</div>' +
+      (passo > 0 ? '<div class="actions"><button class="btn quiet" id="btnFichaVoltar" type="button" data-act="ficha-passo" data-dir="-1">Voltar ao passo anterior</button></div>' : '');
+  }
+  /* posições do passo ainda "não avaliado": informa, não bloqueia ("não avaliado" é resposta válida) */
+  function faltaTxt(f, P) {
+    if (!P || !P.eixos) return '';
+    const n = P.eixos.reduce((a, ax) => a + [0, 1].filter(p => f.eixos[p][ax.k].estado === 'nao_avaliado').length, 0);
+    return n ? n + (n === 1 ? ' posição sem marcar' : ' posições sem marcar') : '';
   }
   const INTENS = ['leve', 'média', 'forte'];
   function intSelect(id) { return '<select id="' + id + '" aria-label="Intensidade do descritor" style="max-width:150px"><option value="">intensidade</option>' + INTENS.map(x => '<option>' + x + '</option>').join('') + '</select>'; }
@@ -2662,12 +2696,20 @@ table.t td.num{text-align:right}
 
   /* ================= EVENTOS ================= */
   function setPath(root, path, val) { const p = path.split('.'); let o = root; for (let i = 0; i < p.length - 1; i++) { if (o[p[i]] == null) o[p[i]] = {}; o = o[p[i]]; } o[p[p.length - 1]] = val; }
+  /* régua ainda "não avaliada" parada no 5: tocar sem arrastar não dispara input; o toque já registra o valor tocado */
+  document.addEventListener('pointerup', e => {
+    const t = e.target;
+    if (t && t.matches && t.matches('input[type=range][data-axis].unset')) setTimeout(() => { if (t.isConnected && t.classList.contains('unset')) t.dispatchEvent(new Event('input', { bubbles: true })); }, 0);
+  });
   document.addEventListener('input', e => {
     const t = e.target;
     if (t.id === 'lexBusca') { const add = !!$('#modalRoot .modal'); if (!add) UI.lexQ = t.value; $('#lexResultados').innerHTML = lexResults(t.value, add ? UI.lexModalFam : UI.lexFam, add); return; }
-    if (t.dataset.axis) { const s = S(), f = curFicha(s); f.eixos[t.dataset.pos][t.dataset.axis] = { estado: 'valor', v: Number(t.value) }; touch(s); save(true);
-      const v = $('#val_' + t.dataset.pos + '_' + t.dataset.axis); v.className = 'val'; v.textContent = t.value; t.classList.remove('unset');
-      $$('[data-eixo="' + t.dataset.axis + '"][data-pos="' + t.dataset.pos + '"]').forEach(b => b.setAttribute('aria-pressed', 'false')); return; }
+    if (t.dataset.axis) { const s = S(), f = curFicha(s), n = Number(t.value);
+      f.eixos[t.dataset.pos][t.dataset.axis] = n === 0 ? { estado: 'nao_percebido', v: null } : { estado: 'valor', v: n }; touch(s); save(true);
+      const v = $('#val_' + t.dataset.pos + '_' + t.dataset.axis); v.className = 'val'; v.textContent = String(n); t.classList.remove('unset');
+      t.setAttribute('aria-valuetext', n === 0 ? 'não percebido' : String(n));
+      $$('[data-eixo="' + t.dataset.axis + '"][data-pos="' + t.dataset.pos + '"]').forEach(b => { b.disabled = false; });
+      const fl = $('#fichaFalta'); if (fl) fl.textContent = faltaTxt(f, PASSOS_FICHA[passoFicha(s)]); return; }
     const b = t.dataset.bind; if (!b) return;
     if (b.startsWith('draft.')) { setPath(UI, b, t.value); saveUI(); return; }
     if (b.startsWith('ficha.')) { setFichaField(b.slice(6), t.value); return; }
